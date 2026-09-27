@@ -1,7 +1,3 @@
-
-
-
-Readme · MD
 # personaLearn
  
 Platform *e-learning* dengan rekomendasi konten pembelajaran yang dipersonalisasi berdasarkan kepribadian dan gaya belajar pelajar (MBTI, Big Five Personality Traits, VARK), dilengkapi bantuan belajar berbasis AI.
