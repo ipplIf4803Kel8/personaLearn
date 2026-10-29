@@ -4,6 +4,7 @@ import { MdEmail, MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md'
 import { FaGoogle, FaFacebookF, FaApple } from 'react-icons/fa'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { validateLogin, validateRegister } from '@/lib/validators'
 
 const spring = { type: 'spring', stiffness: 300, damping: 30 }
 
@@ -22,6 +23,9 @@ const socialProviders = [
 const inputClass =
   'h-auto rounded-2xl border-2 border-transparent bg-slate-50 px-5 py-4 text-base text-slate-700 shadow-none placeholder:text-slate-500 focus-visible:border-[#5F33E1] focus-visible:ring-4 focus-visible:ring-[#5F33E1]/15'
 
+const FieldError = ({ message }) =>
+  message && <p className="mt-1.5 px-2 text-sm text-red-600">{message}</p>
+
 export function AuthScreen({
   variant = 'login',
   heading,
@@ -36,14 +40,29 @@ export function AuthScreen({
   onSocialLogin,
 }) {
   const isRegister = variant === 'register'
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [comingSoon, setComingSoon] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onSubmit?.(isRegister ? { email, password, confirmPassword } : { email, password })
+    const data = isRegister ? { name, email, password, confirmPassword } : { email, password }
+    const found = (isRegister ? validateRegister : validateLogin)(data)
+    setErrors(found)
+    if (Object.keys(found).length) return
+
+    setSubmitting(true)
+    try {
+      await onSubmit({ ...data, email: email.trim() })
+    } catch (err) {
+      setErrors({ form: err.message })
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -66,16 +85,31 @@ export function AuthScreen({
             {subheading}
           </motion.p>
 
-          <motion.form {...fadeUp(0.2)} onSubmit={handleSubmit} className="mt-10 space-y-4">
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
-              required
-            />
+          <motion.form {...fadeUp(0.2)} onSubmit={handleSubmit} noValidate className="mt-10 space-y-4">
+            {isRegister && (
+              <div>
+                <Input
+                  placeholder="Nama"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={inputClass}
+                />
+                <FieldError message={errors.name} />
+              </div>
+            )}
 
+            <div>
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClass}
+              />
+              <FieldError message={errors.email} />
+            </div>
+
+            <div>
             <div className="relative">
               <Input
                 type={showPassword ? 'text' : 'password'}
@@ -83,7 +117,6 @@ export function AuthScreen({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={`${inputClass} pr-12`}
-                required
               />
               <button
                 type="button"
@@ -94,16 +127,20 @@ export function AuthScreen({
                 {showPassword ? <MdVisibilityOff className="h-5 w-5" /> : <MdVisibility className="h-5 w-5" />}
               </button>
             </div>
+            <FieldError message={errors.password} />
+            </div>
 
             {isRegister ? (
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Konfirmasi Kata Sandi"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={inputClass}
-                required
-              />
+              <div>
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Konfirmasi Kata Sandi"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={inputClass}
+                />
+                <FieldError message={errors.confirmPassword} />
+              </div>
             ) : (
               <div className="flex justify-end">
                 <button
@@ -116,8 +153,15 @@ export function AuthScreen({
               </div>
             )}
 
+            {errors.form && (
+              <p role="alert" className="text-center text-sm font-medium text-red-600">
+                {errors.form}
+              </p>
+            )}
+
             <Button
               type="submit"
+              disabled={submitting}
               className="h-auto w-full rounded-2xl bg-[#5F33E1] py-4 text-lg font-bold text-white shadow-lg shadow-violet-300/50 hover:bg-[#5F33E1]/90"
             >
               {submitLabel}
@@ -138,7 +182,7 @@ export function AuthScreen({
                 <button
                   key={name}
                   type="button"
-                  onClick={() => onSocialLogin?.(name)}
+                  onClick={() => (name === 'Google' ? setComingSoon(true) : onSocialLogin?.(name))}
                   aria-label={`Lanjut dengan ${name}`}
                   className="flex h-14 items-center justify-center rounded-2xl bg-slate-50 text-xl text-slate-800 transition-colors hover:bg-slate-100"
                 >
@@ -149,6 +193,29 @@ export function AuthScreen({
           </motion.div>
         </div>
       </div>
+
+      {comingSoon && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
+          onClick={() => setComingSoon(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-xs rounded-3xl bg-white p-6 text-center shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-[#24252C]">Segera Hadir</h2>
+            <p className="mt-2 text-slate-600">Fitur masuk dengan Google belum tersedia.</p>
+            <Button
+              onClick={() => setComingSoon(false)}
+              className="mt-5 h-auto w-full rounded-2xl bg-[#5F33E1] py-3 font-bold text-white hover:bg-[#5F33E1]/90"
+            >
+              Mengerti
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

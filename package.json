@@ -1,0 +1,19 @@
+{
+  "name": "personalearn",
+  "version": "1.0.0",
+  "private": true,
+  "description": "personaLearn e-learning platform with AI recommendation",
+  "scripts": {
+    "setup": "npm install && npm --prefix backend install && npm --prefix frontend install",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
+    "build": "npm --prefix frontend run build",
+    "start": "npm run build && concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm --prefix backend start\" \"npm --prefix frontend run preview\"",
+    "start:prod": "npm run start",
+    "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "db:migrate": "npm --prefix backend run db:migrate",
+    "db:seed": "npm --prefix backend run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
