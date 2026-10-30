@@ -17,12 +17,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Bell, Search, X } from "lucide-react";
 import { NavCmdIcon, NavSearchIcon } from "./icons";
-import { adminNavigation, sentNotifications } from "../../data";
+import { useFetch } from "@/lib/use-fetch";
+import { adminNavigation } from "../../data";
 import { DashboardLink, useDashboardNavigation } from "./navigation";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 const navigationItems = adminNavigation;
 function DashboardTopbar() {
   const { pathname } = useDashboardNavigation();
+  const { data: sentNotifications } = useFetch("/admin/notifications");
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
@@ -162,7 +164,7 @@ function DashboardTopbar() {
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Notifikasi Terkirim</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {sentNotifications.map((notification) => <DropdownMenuItem
+                  {(sentNotifications ?? []).slice(0, 5).map((notification) => <DropdownMenuItem
     key={notification.id}
     className="items-start py-2"
   >

@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { courses, students as initialStudents } from '../../data'
+import { api } from '@/lib/api'
+import { useAction, useFetch } from '@/lib/use-fetch'
+import { ActionError, PageState } from './page-state'
 
 function initials(name) {
   return name
@@ -17,24 +19,28 @@ function initials(name) {
     .slice(0, 2)
 }
 
-function courseTitle(courseId) {
-  return courses.find((course) => course.id === courseId)?.title ?? 'Kelas tidak ditemukan'
-}
-
 function StudentsContent() {
-  const [students, setStudents] = useState(initialStudents)
+  const { data, loading, error, reload } = useFetch('/admin/students')
+  const { data: courses } = useFetch('/admin/courses')
+  const [run, actionError] = useAction(reload)
   const [selected, setSelected] = useState(null)
+  const students = data ?? []
 
-  function toggleActive(id) {
-    setStudents((current) =>
-      current.map((student) => (student.id === id ? { ...student, isActive: !student.isActive } : student))
-    )
-    setSelected((current) => (current && current.id === id ? { ...current, isActive: !current.isActive } : current))
+  const courseTitle = (courseId) =>
+    (courses ?? []).find((course) => course.id === courseId)?.title ?? 'Kelas tidak ditemukan'
+
+  async function toggleActive(student) {
+    const isActive = !student.isActive
+    const ok = await run(() => api(`/admin/students/${student.id}/active`, { method: 'PATCH', body: { isActive } }))
+    if (ok) setSelected((current) => current && { ...current, isActive })
   }
+
+  if (!data) return <PageState loading={loading} error={error} />
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
       <h2 className="text-2xl font-semibold">Pelajar</h2>
+      <ActionError message={actionError} />
 
       <div className="rounded-2xl border">
         <Table>
@@ -89,14 +95,14 @@ function StudentsContent() {
                     <span className="text-muted-foreground">Email:</span> {selected.email}
                   </p>
                   <p>
-                    <span className="text-muted-foreground">Telepon:</span> {selected.phone}
+                    <span className="text-muted-foreground">Telepon:</span> {selected.phone ?? '-'}
                   </p>
                 </div>
 
                 <div className="space-y-1 text-sm">
                   <p className="font-medium">Preferensi Belajar</p>
                   <p className="text-muted-foreground">
-                    MBTI: {selected.mbtiType ?? 'Belum diisi'} &middot; Gaya belajar: {selected.varkStyle}
+                    MBTI: {selected.mbtiType ?? 'Belum diisi'} &middot; Gaya belajar: {selected.varkStyle ?? 'Belum diisi'}
                   </p>
                 </div>
 
@@ -123,7 +129,7 @@ function StudentsContent() {
 
                 <Button
                   variant={selected.isActive ? 'destructive' : 'default'}
-                  onClick={() => toggleActive(selected.id)}
+                  onClick={() => toggleActive(selected)}
                 >
                   {selected.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}
                 </Button>

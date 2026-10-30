@@ -1,6 +1,7 @@
 'use client'
 import { BookOpen, CheckCircle2, GraduationCap, Users } from 'lucide-react'
-import { getStats, getTopCourses, weeklySignups } from '../../data'
+import { useFetch } from '@/lib/use-fetch'
+import { PageState } from './page-state'
 
 const statCards = [
   { key: 'totalStudents', label: 'Total Pelajar', icon: Users },
@@ -10,8 +11,8 @@ const statCards = [
 ]
 
 function DashboardContent() {
-  const stats = getStats()
-  const topCourses = getTopCourses(5)
+  const { data: stats, loading, error } = useFetch('/admin/stats')
+  if (!stats) return <PageState loading={loading} error={error} />
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
@@ -22,8 +23,8 @@ function DashboardContent() {
       </section>
 
       <div className="flex flex-col gap-8 lg:flex-row">
-        <WeeklySignupsChart />
-        <TopCoursesList courses={topCourses} />
+        <WeeklySignupsChart weeklySignups={stats.weeklySignups} />
+        <TopCoursesList courses={stats.topCourses} />
       </div>
     </div>
   )
@@ -43,8 +44,8 @@ function StatCard({ label, value, icon: Icon }) {
   )
 }
 
-function WeeklySignupsChart() {
-  const max = Math.max(...weeklySignups.map((item) => item.count))
+function WeeklySignupsChart({ weeklySignups }) {
+  const max = Math.max(1, ...weeklySignups.map((item) => item.count))
 
   return (
     <section className="flex flex-1 flex-col gap-6 rounded-2xl border p-5">
@@ -81,7 +82,7 @@ function TopCoursesList({ courses }) {
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{course.title}</p>
               <p className="text-xs text-muted-foreground">
-                {course.studentsCount} pelajar &middot; rating {course.rating}
+                {course.studentsCount} pelajar &middot; rating {course.rating ?? '-'}
               </p>
             </div>
           </li>

@@ -20,6 +20,39 @@ export const challenges = crud(
   { required: ['title', 'startsAt', 'endsAt'] }
 )
 
+export const lessons = crud('lessons', ['title', 'videoUrl', 'durationSeconds', 'description'], {
+  required: ['title'],
+})
+
+export async function listLessons(req, res) {
+  const { rows } = await pool.query('SELECT * FROM lessons WHERE course_id = $1 ORDER BY position, id', [req.params.id])
+  res.json(rows.map(toCamel))
+}
+
+export async function createLesson(req, res) {
+  const { title, videoUrl = '', durationSeconds = 0, description = '' } = req.body
+  if (!title?.trim()) return res.status(400).json({ message: 'Field wajib diisi: title' })
+  const { rows } = await pool.query(
+    `INSERT INTO lessons (course_id, title, video_url, duration_seconds, description, position)
+     VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(position) FROM lessons WHERE course_id = $1), 0) + 1)
+     RETURNING *`,
+    [req.params.id, title.trim(), videoUrl, durationSeconds, description]
+  )
+  res.status(201).json(toCamel(rows[0]))
+}
+
+// body: { ids: [urutan id pelajaran yang baru] }
+export async function reorderLessons(req, res) {
+  const ids = req.body.ids
+  if (!Array.isArray(ids)) return res.status(400).json({ message: 'ids harus berupa array' })
+  await pool.query(
+    `UPDATE lessons SET position = v.pos FROM unnest($1::int[]) WITH ORDINALITY AS v(id, pos)
+     WHERE lessons.id = v.id AND lessons.course_id = $2`,
+    [ids, req.params.id]
+  )
+  res.status(204).end()
+}
+
 export const notifications = crud('notifications', ['title', 'body', 'audience'], {
   required: ['title', 'body'],
   listSql: 'SELECT * FROM notifications ORDER BY sent_at DESC',
@@ -41,7 +74,7 @@ export async function getStats(req, res) {
       AND u.created_at < date_trunc('week', NOW()) - (w - 1) * INTERVAL '1 week'
     GROUP BY w ORDER BY w DESC`)
   const topCourses = await one(`
-    SELECT c.id, c.title, COUNT(e.user_id)::int AS students_count
+    SELECT c.id, c.title, COUNT(e.user_id)::int AS students_count, ROUND(AVG(e.rating), 1)::float AS rating
     FROM courses c LEFT JOIN enrollments e ON e.course_id = c.id
     GROUP BY c.id ORDER BY students_count DESC LIMIT 5`)
   res.json({ ...toCamel(stats), weeklySignups, topCourses: topCourses.map(toCamel) })

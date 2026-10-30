@@ -31,6 +31,12 @@ for (const [path, handlers] of Object.entries({
   adminRouter.delete(`/${path}/:id`, handlers.remove)
 }
 
+adminRouter.get('/courses/:id/lessons', admin.listLessons)
+adminRouter.post('/courses/:id/lessons', admin.createLesson)
+adminRouter.patch('/courses/:id/lessons/reorder', admin.reorderLessons)
+adminRouter.patch('/lessons/:id', admin.lessons.update)
+adminRouter.delete('/lessons/:id', admin.lessons.remove)
+
 adminRouter.get('/notifications', admin.notifications.list)
 adminRouter.post('/notifications', admin.notifications.create)
 

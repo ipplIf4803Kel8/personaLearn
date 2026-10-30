@@ -14,7 +14,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { categories, courses as initialCourses, lessonsByCourse as initialLessonsByCourse } from '../../data'
+import { api } from '@/lib/api'
+import { useAction, useFetch } from '@/lib/use-fetch'
+import { ActionError, PageState } from './page-state'
 
 const levels = ['Beginner', 'Intermediate', 'Advanced']
 const varkOptions = ['visual', 'auditory', 'reading', 'kinesthetic']
@@ -52,8 +54,11 @@ function TagPicker({ label, options, value, onChange }) {
 }
 
 function ClassesContent() {
-  const [courses, setCourses] = useState(initialCourses)
-  const [lessonsByCourse, setLessonsByCourse] = useState(initialLessonsByCourse)
+  const { data, loading, error, reload } = useFetch('/admin/courses')
+  const { data: categoryData } = useFetch('/admin/categories')
+  const [run, actionError] = useAction(reload)
+  const courses = data ?? []
+  const categories = categoryData ?? []
   const [selectedCourseId, setSelectedCourseId] = useState(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -93,11 +98,12 @@ function ClassesContent() {
     setSheetOpen(true)
   }
 
-  function handleDelete(id) {
-    setCourses((current) => current.filter((course) => course.id !== id))
+  function handleDelete(course) {
+    if (!confirm(`Hapus kelas "${course.title}" beserta seluruh pelajarannya?`)) return
+    run(() => api(`/admin/courses/${course.id}`, { method: 'DELETE' }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const payload = {
@@ -111,31 +117,17 @@ function ClassesContent() {
     }
     if (!payload.title) return
 
-    if (editing.id) {
-      setCourses((current) => current.map((course) => (course.id === editing.id ? { ...course, ...payload } : course)))
-    } else {
-      const nextId = Math.max(0, ...courses.map((course) => course.id)) + 1
-      setCourses((current) => [
-        ...current,
-        { ...payload, id: nextId, thumbnailUrl: '', studentsCount: 0, rating: 0 },
-      ])
-      setLessonsByCourse((current) => ({ ...current, [nextId]: [] }))
-    }
-    setSheetOpen(false)
+    const request = editing.id
+      ? api(`/admin/courses/${editing.id}`, { method: 'PATCH', body: payload })
+      : api('/admin/courses', { method: 'POST', body: payload })
+    if (await run(() => request)) setSheetOpen(false)
   }
+
+  if (!data) return <PageState loading={loading} error={error} />
 
   if (selectedCourseId) {
     const course = courses.find((item) => item.id === selectedCourseId)
-    return (
-      <LessonsPanel
-        course={course}
-        lessons={lessonsByCourse[selectedCourseId] ?? []}
-        onBack={() => setSelectedCourseId(null)}
-        onChangeLessons={(lessons) =>
-          setLessonsByCourse((current) => ({ ...current, [selectedCourseId]: lessons }))
-        }
-      />
-    )
+    return <LessonsPanel course={course} onBack={() => setSelectedCourseId(null)} />
   }
 
   return (
@@ -147,6 +139,8 @@ function ClassesContent() {
           Tambah Kelas
         </Button>
       </div>
+
+      <ActionError message={actionError} />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
@@ -227,7 +221,7 @@ function ClassesContent() {
                     {categoryName(course.categoryId)} &middot; {course.level}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{course.studentsCount}</TableCell>
-                  <TableCell className="text-muted-foreground">{course.rating}</TableCell>
+                  <TableCell className="text-muted-foreground">{course.rating ?? '-'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => setSelectedCourseId(course.id)}>
@@ -240,7 +234,7 @@ function ClassesContent() {
                         variant="outline"
                         size="icon-sm"
                         aria-label={`Hapus ${course.title}`}
-                        onClick={() => handleDelete(course.id)}
+                        onClick={() => handleDelete(course)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -354,10 +348,13 @@ function ClassesContent() {
   )
 }
 
-function LessonsPanel({ course, lessons, onBack, onChangeLessons }) {
+function LessonsPanel({ course, onBack }) {
+  const lessonsPath = `/admin/courses/${course.id}/lessons`
+  const { data, loading, error, reload } = useFetch(lessonsPath)
+  const [run, actionError] = useAction(reload)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const sortedLessons = [...lessons].sort((a, b) => a.position - b.position)
+  const sortedLessons = data ?? []
 
   function openCreate() {
     setEditing({ id: null, title: '', videoUrl: '', durationMinutes: '', description: '' })
@@ -369,8 +366,9 @@ function LessonsPanel({ course, lessons, onBack, onChangeLessons }) {
     setSheetOpen(true)
   }
 
-  function handleDelete(id) {
-    onChangeLessons(lessons.filter((lesson) => lesson.id !== id))
+  function handleDelete(lesson) {
+    if (!confirm(`Hapus pelajaran "${lesson.title}"?`)) return
+    run(() => api(`/admin/lessons/${lesson.id}`, { method: 'DELETE' }))
   }
 
   function move(id, direction) {
@@ -379,10 +377,10 @@ function LessonsPanel({ course, lessons, onBack, onChangeLessons }) {
     if (targetIndex < 0 || targetIndex >= sortedLessons.length) return
     const reordered = [...sortedLessons]
     ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
-    onChangeLessons(reordered.map((lesson, position) => ({ ...lesson, position: position + 1 })))
+    run(() => api(`${lessonsPath}/reorder`, { method: 'PATCH', body: { ids: reordered.map((lesson) => lesson.id) } }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const title = formData.get('title').trim()
@@ -391,18 +389,11 @@ function LessonsPanel({ course, lessons, onBack, onChangeLessons }) {
     const description = formData.get('description').trim()
     if (!title) return
 
-    if (editing.id) {
-      onChangeLessons(
-        lessons.map((lesson) => (lesson.id === editing.id ? { ...lesson, title, videoUrl, durationSeconds, description } : lesson))
-      )
-    } else {
-      const nextId = Math.max(0, ...lessons.map((lesson) => lesson.id)) + 1
-      onChangeLessons([
-        ...lessons,
-        { id: nextId, title, videoUrl, durationSeconds, description, position: lessons.length + 1 },
-      ])
-    }
-    setSheetOpen(false)
+    const body = { title, videoUrl, durationSeconds, description }
+    const request = editing.id
+      ? api(`/admin/lessons/${editing.id}`, { method: 'PATCH', body })
+      : api(lessonsPath, { method: 'POST', body })
+    if (await run(() => request)) setSheetOpen(false)
   }
 
   return (
@@ -423,7 +414,11 @@ function LessonsPanel({ course, lessons, onBack, onChangeLessons }) {
         </Button>
       </div>
 
-      {sortedLessons.length === 0 ? (
+      <ActionError message={actionError} />
+
+      {!data ? (
+        <PageState loading={loading} error={error} />
+      ) : sortedLessons.length === 0 ? (
         <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed text-center">
           <p className="font-medium">Belum ada pelajaran</p>
           <p className="text-sm text-muted-foreground">Tambahkan pelajaran pertama untuk kelas ini.</p>
@@ -460,7 +455,7 @@ function LessonsPanel({ course, lessons, onBack, onChangeLessons }) {
                         variant="outline"
                         size="icon-sm"
                         aria-label={`Hapus ${lesson.title}`}
-                        onClick={() => handleDelete(lesson.id)}
+                        onClick={() => handleDelete(lesson)}
                       >
                         <Trash2 className="size-4" />
                       </Button>

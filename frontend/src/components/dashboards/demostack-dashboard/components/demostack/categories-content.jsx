@@ -12,7 +12,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { categories as initialCategories } from '../../data'
+import { api } from '@/lib/api'
+import { useAction, useFetch } from '@/lib/use-fetch'
+import { ActionError, PageState } from './page-state'
 
 function slugify(value) {
   return value
@@ -23,7 +25,9 @@ function slugify(value) {
 }
 
 function CategoriesContent() {
-  const [categories, setCategories] = useState(initialCategories)
+  const { data, loading, error, reload } = useFetch('/admin/categories')
+  const [run, actionError] = useAction(reload)
+  const categories = data ?? []
   const [editing, setEditing] = useState(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -37,11 +41,12 @@ function CategoriesContent() {
     setSheetOpen(true)
   }
 
-  function handleDelete(id) {
-    setCategories((current) => current.filter((category) => category.id !== id))
+  function handleDelete(category) {
+    if (!confirm(`Hapus kategori "${category.name}"?`)) return
+    run(() => api(`/admin/categories/${category.id}`, { method: 'DELETE' }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const name = formData.get('name').trim()
@@ -49,16 +54,13 @@ function CategoriesContent() {
 
     if (!name) return
 
-    if (editing.id) {
-      setCategories((current) =>
-        current.map((category) => (category.id === editing.id ? { ...category, name, slug } : category))
-      )
-    } else {
-      const nextId = Math.max(0, ...categories.map((category) => category.id)) + 1
-      setCategories((current) => [...current, { id: nextId, name, slug }])
-    }
-    setSheetOpen(false)
+    const request = editing.id
+      ? api(`/admin/categories/${editing.id}`, { method: 'PATCH', body: { name, slug } })
+      : api('/admin/categories', { method: 'POST', body: { name, slug } })
+    if (await run(() => request)) setSheetOpen(false)
   }
+
+  if (!data) return <PageState loading={loading} error={error} />
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
@@ -69,6 +71,8 @@ function CategoriesContent() {
           Tambah Kategori
         </Button>
       </div>
+
+      <ActionError message={actionError} />
 
       {categories.length === 0 ? (
         <EmptyState />
@@ -96,7 +100,7 @@ function CategoriesContent() {
                         variant="outline"
                         size="icon-sm"
                         aria-label={`Hapus ${category.name}`}
-                        onClick={() => handleDelete(category.id)}
+                        onClick={() => handleDelete(category)}
                       >
                         <Trash2 className="size-4" />
                       </Button>

@@ -1,9 +1,11 @@
 'use client'
-import { chatMessageStats, getAverageProgressByCourse, getRatingExtremes } from '../../data'
+import { useFetch } from '@/lib/use-fetch'
+import { PageState } from './page-state'
 
 function ReportsContent() {
-  const progressByCourse = getAverageProgressByCourse()
-  const { highest, lowest } = getRatingExtremes()
+  const { data, loading, error } = useFetch('/admin/reports')
+  if (!data) return <PageState loading={loading} error={error} />
+  const { progressByCourse, highestRated: highest, lowestRated: lowest, chatMessageStats } = data
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
@@ -12,10 +14,10 @@ function ReportsContent() {
       <section className="space-y-3 rounded-2xl border p-5">
         <h3 className="font-semibold">Progres Rata-rata per Kelas</h3>
         <div className="space-y-3">
-          {progressByCourse.map(({ course, averageProgress, enrolledCount }) => (
-            <div key={course.id} className="space-y-1">
+          {progressByCourse.map(({ id, title, averageProgress, enrolledCount }) => (
+            <div key={id} className="space-y-1">
               <div className="flex items-center justify-between text-sm">
-                <span>{course.title}</span>
+                <span>{title}</span>
                 <span className="text-muted-foreground">
                   {averageProgress}% &middot; {enrolledCount} pelajar
                 </span>

@@ -24,7 +24,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { adminNavigation, currentAdmin } from '../../data'
+import { useAuth } from '@/context/AuthContext'
+import { adminNavigation } from '../../data'
 import { PersonaLearnLogo } from './logo'
 import { DashboardLink, useDashboardNavigation } from './navigation'
 import { useTheme } from './theme-provider'
@@ -33,6 +34,13 @@ function DashboardSidebar() {
   const { theme, toggleTheme } = useTheme()
   const { pathname } = useDashboardNavigation()
   const { isMobile, setOpenMobile } = useSidebar()
+  const { user, logout } = useAuth()
+  const currentAdmin = {
+    name: user.name,
+    email: user.email,
+    avatar: user.avatarUrl ?? '',
+    initials: user.name.split(/\s+/).map((part) => part[0]).join('').toUpperCase().slice(0, 2),
+  }
 
   return (
     <Sidebar collapsible="icon" className="demostack-dashboard border-none p-1.5">
@@ -114,7 +122,7 @@ function DashboardSidebar() {
                 {theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive">
+              <DropdownMenuItem variant="destructive" onClick={logout}>
                 <LogOut />
                 Keluar
               </DropdownMenuItem>
