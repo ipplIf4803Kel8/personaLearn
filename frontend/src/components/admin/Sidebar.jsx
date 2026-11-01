@@ -105,7 +105,7 @@ function AdminSidebar() {
                 variant="destructive"
                 onClick={() => {
                   logout()
-                  navigate('/admin/masuk', { replace: true })
+                  navigate('/masuk', { replace: true })
                 }}
               >
                 <LogOut />

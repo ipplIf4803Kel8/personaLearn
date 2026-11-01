@@ -29,7 +29,7 @@ export function DevPanel() {
           >
             Reset data demo
           </button>
-          <button type="button" className="w-full rounded-lg border px-2 py-1" onClick={() => navigate('/admin/masuk')}>
+          <button type="button" className="w-full rounded-lg border px-2 py-1" onClick={() => navigate('/admin')}>
             Buka halaman Admin
           </button>
         </div>

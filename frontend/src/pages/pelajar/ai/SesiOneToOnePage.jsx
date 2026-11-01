@@ -23,7 +23,7 @@ export function SesiOneToOnePage() {
     await new Promise((r) => setTimeout(r, 500))
     if (db.simulasi.koneksi) throw new Error('terputus')
     return true
-  }, [n])
+  }, [n], { simpan: false })
   useEffect(() => {
     bawah.current?.scrollIntoView({ block: 'end' })
   }, [pesan.length])

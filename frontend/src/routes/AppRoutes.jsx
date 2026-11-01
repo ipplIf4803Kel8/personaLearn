@@ -1,5 +1,5 @@
-import { Route, Routes } from 'react-router'
-import { AdminOnly, StudentOnly, GuestOnly, AdminGuestOnly } from '@/routes/RouteGuards'
+import { Navigate, Route, Routes } from 'react-router'
+import { AdminOnly, StudentOnly, GuestOnly } from '@/routes/RouteGuards'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // ---- Pelajar: UC1 Autentikasi
@@ -46,7 +46,7 @@ import { ObrolanSinauBotPage } from '@/pages/pelajar/ai/ObrolanSinauBotPage'
 import { SesiOneToOnePage } from '@/pages/pelajar/ai/SesiOneToOnePage'
 // ---- Admin
 import { AdminLayout } from '@/components/admin/AdminLayout'
-import { MasukAdminPage } from '@/pages/admin/MasukAdminPage'
+// import { MasukAdminPage } from '@/pages/admin/MasukAdminPage' // dinonaktifkan sementara, lihat di bawah
 import { DashboardAdminPage } from '@/pages/admin/DashboardAdminPage'
 import { KategoriPage } from '@/pages/admin/KategoriPage'
 import { KelasPage } from '@/pages/admin/KelasPage'
@@ -114,9 +114,10 @@ export function AppRoutes() {
       </Route>
 
       {/* Admin */}
-      <Route element={<AdminGuestOnly />}>
-        <Route path="/admin/masuk" element={<MasukAdminPage />} /> {/* UC1-L09 */}
-      </Route>
+      {/* UC1-L09 Masuk Admin dinonaktifkan sementara: admin login dari halaman /masuk yang sama dengan pelajar
+          (seperti versi teman). Untuk mengaktifkan lagi, ganti baris di bawah dengan:
+          <Route element={<AdminGuestOnly />}><Route path="/admin/masuk" element={<MasukAdminPage />} /></Route> */}
+      <Route path="/admin/masuk" element={<Navigate to="/masuk" replace />} />
       <Route element={<AdminOnly />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<DashboardAdminPage />} /> {/* UC1-L10 */}

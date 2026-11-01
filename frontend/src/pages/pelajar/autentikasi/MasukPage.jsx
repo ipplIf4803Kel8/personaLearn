@@ -5,7 +5,7 @@ import { useRouter } from '@/lib/router'
 import { getHomePath } from '@/routes/getHomePath'
 import { useAuth } from '@/context/AuthContext'
 
-// UC1-L02 Masuk (kondisi B: login gagal)
+// UC1-L02 Masuk (kondisi B: login gagal). Dipakai pelajar DAN admin (admin dicek ke backend).
 export function MasukPage() {
   const { navigate } = useRouter()
   const { aksi } = useDb()

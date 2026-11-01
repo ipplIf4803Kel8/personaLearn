@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { buatSeed } from './seed'
 import { kelompokDariTipe } from './mbti'
+import { clearAsyncCache } from '@/hooks/useAsync'
 
 // Sumber data sementara untuk frontend (disimpan di localStorage).
 // Setiap aksi bersifat async seperti pemanggilan API, jadi nanti tinggal diganti fetch ke backend.
@@ -62,7 +63,10 @@ export function DbProvider({ children }) {
     () => ({
       // ------------------------------------------------------------ umum
       setSimulasiKoneksi: (aktif) => commit((d) => ({ ...d, simulasi: { ...d.simulasi, koneksi: aktif } })),
-      resetData: () => commit(buatSeed()),
+      resetData: () => {
+        clearAsyncCache()
+        commit(buatSeed())
+      },
 
       // ------------------------------------------------------------ UC1 Autentikasi
       async daftar({ email, kataSandi, konfirmasi }) {
@@ -124,7 +128,10 @@ export function DbProvider({ children }) {
         ubahPengguna(ref.current.sesi.idPengguna, { tipeMbti: tipe, onboardingSelesai: true })
         return { ok: true }
       },
-      keluar: () => commit((d) => ({ ...d, sesi: null })),
+      keluar: () => {
+        clearAsyncCache()
+        commit((d) => ({ ...d, sesi: null }))
+      },
 
       // ------------------------------------------------------------ UC2 Eksplorasi Kelas
       async cariKelas({ q = '', idKategori = null, tingkat = [], ratingMin = 0, durasi = null } = {}) {
