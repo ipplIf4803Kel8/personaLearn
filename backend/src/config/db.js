@@ -1,6 +1,9 @@
 import pg from 'pg'
 import 'dotenv/config'
 
+// DATE dikembalikan sebagai string 'YYYY-MM-DD' agar tidak bergeser oleh zona waktu
+pg.types.setTypeParser(1082, (v) => v)
+
 const pool = new pg.Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT) || 5432,

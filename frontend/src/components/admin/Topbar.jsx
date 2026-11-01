@@ -6,12 +6,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { Bell, Search, X } from "lucide-react";
 import { NavCmdIcon, NavSearchIcon } from '@/components/admin/Icons';
 import { adminMenu } from '@/components/admin/adminMenu'
-import { sentNotifications } from '@/data/adminTemplateData';
+import { useFetch } from '@/lib/use-fetch';
 import { AdminLink, useAdminNavigation } from '@/components/admin/AdminNavigation';
 import { SidebarTrigger } from "@/components/ui/sidebar";
 const navigationItems = adminMenu;
 function AdminTopbar() {
   const { pathname } = useAdminNavigation();
+  const { data: sentNotifications } = useFetch('/admin/notifications');
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
@@ -151,7 +152,7 @@ function AdminTopbar() {
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Notifikasi Terkirim</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {sentNotifications.map((notification) => <DropdownMenuItem
+                  {(sentNotifications ?? []).slice(0, 5).map((notification) => <DropdownMenuItem
     key={notification.id}
     className="items-start py-2"
   >

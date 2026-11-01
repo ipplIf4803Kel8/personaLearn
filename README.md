@@ -31,25 +31,49 @@ docs/       Dokumen tugas
 
 Pastikan sudah terpasang Node.js 20 ke atas dan PostgreSQL.
 
-Backend:
+### 1. Setup Awal (Sekali Saja)
 
 ```bash
-cd backend
-cp .env.example .env
-npm install
+# Setup backend .env
+cp backend/.env.example backend/.env
+# (Sesuaikan DB_USER dan DB_PASSWORD di backend/.env jika diperlukan)
+
+# Install semua dependensi (root, backend, frontend)
+npm run setup
+
+# Migrasi database PostgreSQL
 npm run db:migrate
-npm run dev
+```
+
+### 2. Menjalankan Sekaligus dari Root Folder
+
+- **Mode Build (Production Preview):**
+  ```bash
+  npm run start
+  # atau
+  npm run start:prod
+  ```
+  *(Otomatis mem-build frontend dan menjalankan backend di http://localhost:3000 serta frontend preview di http://localhost:4173)*
+
+- **Mode Development (Hot-reload):**
+  ```bash
+  npm run dev
+  ```
+  *(Menjalankan backend di http://localhost:3000 dan frontend di http://localhost:5173 secara bersamaan)*
+
+### Menjalankan Terpisah Secara Manual
+
+Backend:
+```bash
+cd backend
+npm run dev # atau npm start
 ```
 
 Frontend:
-
 ```bash
 cd frontend
-npm install
-npm run dev
+npm run dev # atau npm run build && npm run preview
 ```
-
-Backend berjalan di http://localhost:3000 dan frontend di http://localhost:5173.
 
 ## Anggota
 

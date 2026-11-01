@@ -2,15 +2,16 @@ import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { EMAIL_RE, useDb } from '@/data/db'
+import { validateLogin } from '@/lib/validators'
+import { useAuth } from '@/context/AuthContext'
 import { useRouter } from '@/lib/router'
-import { FormError } from '@/components/admin/AdminKit'
+import { FormError } from '@/components/admin/PageState'
 import { PersonaLearnLogo } from '@/components/admin/Logo'
 
 // UC1-L09 Masuk Admin
 function MasukAdminPage() {
   const { navigate } = useRouter()
-  const { aksi } = useDb()
+  const { login, logout } = useAuth()
   const [email, setEmail] = useState('')
   const [kataSandi, setKataSandi] = useState('')
   const [lihat, setLihat] = useState(false)
@@ -19,12 +20,22 @@ function MasukAdminPage() {
 
   async function masuk(e) {
     e.preventDefault()
-    if (!EMAIL_RE.test(email.trim()) || !kataSandi) return setPesan('Isi email dan kata sandi dengan benar.')
+    const salah = validateLogin({ email, password: kataSandi })
+    if (Object.keys(salah).length) return setPesan('Isi email dan kata sandi dengan benar.')
     setLoading(true)
-    const r = await aksi.masuk({ email, kataSandi, peran: 'admin' })
-    setLoading(false)
-    if (!r.ok) return setPesan(r.pesan)
-    navigate('/admin', { replace: true })
+    setPesan('')
+    try {
+      const user = await login({ email: email.trim(), password: kataSandi })
+      if (user.role !== 'admin') {
+        logout()
+        return setPesan('Akun ini bukan akun admin.')
+      }
+      navigate('/admin', { replace: true })
+    } catch (err) {
+      setPesan(err.message) // mis. "Email atau kata sandi salah" / "Tidak dapat terhubung ke server"
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

@@ -1,103 +1,151 @@
-'use client'
-import { useMemo, useRef, useState } from 'react'
-import { Eye, ImagePlus, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CourseThumbnail } from '@/components/pelajar/CourseCard'
-import { useToast } from '@/components/pelajar/Toast'
-import { jumlahPelajar, kategoriDari, pelajaranKelas, useDb } from '@/data/db'
+import { api } from '@/lib/api'
+import { useAction, useFetch } from '@/lib/use-fetch'
+import { ActionError, PageState } from '@/components/admin/PageState'
+
 import { useRouter } from '@/lib/router'
-import { ConfirmDialog, FormError, PageHeader, CLASS_STATUS, selectClass, textareaClass } from '@/components/admin/AdminKit'
+import { TagPicker, personalityOptions, varkOptions } from '@/components/admin/TagPicker'
 
-const TINGKAT = ['Pemula', 'Menengah', 'Lanjut']
+const levels = ['Beginner', 'Intermediate', 'Advanced']
 
-// UC8-L01 Daftar Kelas + UC8-L02 Form Kelas
-
-export function KelasPage() {
+// UC8 Kelola Kelas — data dari backend (kode dari teman, dipindah ke struktur baru)
+function KelasPage() {
+  const { data, loading, error, reload } = useFetch('/admin/courses')
+  const { data: categoryData } = useFetch('/admin/categories')
+  const [run, actionError] = useAction(reload)
+  const courses = data ?? []
+  const categories = categoryData ?? []
   const { navigate } = useRouter()
-  const { db, aksi } = useDb()
-  const toast = useToast()
   const [search, setSearch] = useState('')
-  const [kategori, setKategori] = useState('semua')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [levelFilter, setLevelFilter] = useState('all')
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [hapus, setHapus] = useState(null)
-  const fileRef = useRef(null)
 
-  const filtered = useMemo(
-    () =>
-      db.kelas.filter(
-        (k) =>
-          k.nama.toLowerCase().includes(search.toLowerCase()) && (kategori === 'semua' || k.idKategori === Number(kategori)),
-      ),
-    [db.kelas, search, kategori],
-  )
+  const filteredCourses = useMemo(() => {
+    return courses.filter((course) => {
+      const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase())
+      const matchesCategory = categoryFilter === 'all' || course.categoryId === Number(categoryFilter)
+      const matchesLevel = levelFilter === 'all' || course.level === levelFilter
+      return matchesSearch && matchesCategory && matchesLevel
+    })
+  }, [courses, search, categoryFilter, levelFilter])
 
-
-  function openForm(kelas) {
-    setError('')
-    setEditing(kelas ?? { id: null, nama: '', idKategori: db.kategori[0]?.id ?? '', tingkat: 'Pemula', deskripsi: '', gambar: null })
+  function categoryName(categoryId) {
+    return categories.find((category) => category.id === categoryId)?.name ?? '-'
   }
 
-  function pilihGambar(e) {
-    const f = e.target.files?.[0]
-    e.target.value = ''
-    if (!f) return
-    if (!['image/jpeg', 'image/png'].includes(f.type) || f.size > 5 * 1024 * 1024) {
-      return setError('Gambar tidak valid. Gunakan JPG atau PNG maksimal 5 MB.')
+  function openCreate() {
+    setEditing({
+      id: null,
+      categoryId: categories[0]?.id ?? null,
+      title: '',
+      description: '',
+      level: 'Beginner',
+      isPublished: false,
+      varkTags: [],
+      personalityTags: [],
+    })
+    setSheetOpen(true)
+  }
+
+  function openEdit(course) {
+    setEditing(course)
+    setSheetOpen(true)
+  }
+
+  function handleDelete(course) {
+    if (!confirm(`Hapus kelas "${course.title}" beserta seluruh pelajarannya?`)) return
+    run(() => api(`/admin/courses/${course.id}`, { method: 'DELETE' }))
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const payload = {
+      title: formData.get('title').trim(),
+      description: formData.get('description').trim(),
+      categoryId: editing.categoryId,
+      level: editing.level,
+      isPublished: editing.isPublished,
+      varkTags: editing.varkTags,
+      personalityTags: editing.personalityTags,
     }
-    setError('')
-    const r = new FileReader()
-    r.onload = () => setEditing((c) => ({ ...c, gambar: r.result }))
-    r.readAsDataURL(f)
+    if (!payload.title) return
+
+    const request = editing.id
+      ? api(`/admin/courses/${editing.id}`, { method: 'PATCH', body: payload })
+      : api('/admin/courses', { method: 'POST', body: payload })
+    if (await run(() => request)) setSheetOpen(false)
   }
 
-  async function simpan(status) {
-    setLoading(true)
-    const r = await aksi.simpanKelas({ ...editing, idKategori: Number(editing.idKategori) }, status)
-    setLoading(false)
-    if (!r.ok) return setError(r.pesan)
-    setEditing(null)
-    toast(status === 'terbit' ? 'Kelas berhasil dipublikasikan' : 'Kelas berhasil disimpan sebagai draf')
-  }
-
-  async function konfirmasiHapus() {
-    setLoading(true)
-    const r = await aksi.hapusKelas(hapus.id)
-    setLoading(false)
-    setHapus(null)
-    toast(r.disembunyikan ? 'Kelas sudah diikuti pelajar, jadi hanya disembunyikan' : 'Kelas dihapus')
-  }
+  if (!data) return <PageState loading={loading} error={error} />
 
   return (
-    <div data-screen="UC8-L01" className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
-      <PageHeader title="Kelas" description="Kelola kelas, status publikasi, dan pelajarannya.">
-        <Button className="gap-1 rounded-xl" onClick={() => openForm()}>
+    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-2xl font-semibold">Kelas</h2>
+        <Button className="gap-1 rounded-xl" onClick={openCreate}>
           <Plus className="size-4" />
           Tambah Kelas
         </Button>
-      </PageHeader>
+      </div>
+
+      <ActionError message={actionError} />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama kelas..." className="pl-9" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cari judul kelas..."
+            className="pl-9"
+          />
         </div>
-        <select aria-label="Filter kategori" value={kategori} onChange={(e) => setKategori(e.target.value)} className={`${selectClass} sm:w-56`}>
-          <option value="semua">Semua Kategori</option>
-          {db.kategori.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.nama}
-            </option>
-          ))}
-        </select>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={String(category.id)}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Level</SelectItem>
+            {levels.map((level) => (
+              <SelectItem key={level} value={level}>
+                {level}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {filtered.length === 0 ? (
+      {filteredCourses.length === 0 ? (
         <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed text-center">
           <p className="font-medium">Tidak ada kelas yang cocok</p>
           <p className="text-sm text-muted-foreground">Ubah kata kunci pencarian atau filter.</p>
@@ -108,37 +156,51 @@ export function KelasPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Kelas</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead>Tingkat</TableHead>
-                <TableHead>Pelajaran</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Kategori / Level</TableHead>
+                <TableHead>Pelajar</TableHead>
+                <TableHead>Rating</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((k) => (
-                <TableRow key={k.id}>
+              {filteredCourses.map((course) => (
+                <TableRow key={course.id}>
                   <TableCell>
-                    <div className="flex items-center gap-3">
-                      <CourseThumbnail kelas={k} className="size-11 shrink-0 rounded-lg text-xl" />
-                      <p className="font-medium">{k.nama}</p>
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{course.title}</p>
+                        <Badge variant={course.isPublished ? 'default' : 'secondary'}>
+                          {course.isPublished ? 'Terbit' : 'Draf'}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...course.varkTags, ...course.personalityTags].map((tag) => (
+                          <Badge key={tag} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{kategoriDari(db, k.idKategori)?.nama ?? '-'}</TableCell>
-                  <TableCell className="text-muted-foreground">{k.tingkat}</TableCell>
-                  <TableCell className="text-muted-foreground">{pelajaranKelas(db, k.id).length}</TableCell>
-                  <TableCell>
-                    <Badge variant={CLASS_STATUS[k.status].variant}>{CLASS_STATUS[k.status].label}</Badge>
+                  <TableCell className="text-muted-foreground">
+                    {categoryName(course.categoryId)} &middot; {course.level}
                   </TableCell>
+                  <TableCell className="text-muted-foreground">{course.studentsCount}</TableCell>
+                  <TableCell className="text-muted-foreground">{course.rating ?? '-'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate(`/admin/kelas/${k.id}`)}>
-                        <Eye className="size-4" /> Detail
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/admin/kelas/${course.id}`)}>
+                        Kelola Pelajaran
                       </Button>
-                      <Button variant="outline" size="icon-sm" aria-label={`Ubah ${k.nama}`} onClick={() => openForm(k)}>
+                      <Button variant="outline" size="icon-sm" aria-label={`Ubah ${course.title}`} onClick={() => openEdit(course)}>
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="outline" size="icon-sm" aria-label={`Hapus ${k.nama}`} onClick={() => setHapus(k)}>
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={`Hapus ${course.title}`}
+                        onClick={() => handleDelete(course)}
+                      >
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
@@ -150,68 +212,93 @@ export function KelasPage() {
         </div>
       )}
 
-      <Sheet open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-        <SheetContent className="overflow-y-auto" data-screen="UC8-L02">
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="overflow-y-auto">
           {editing && (
-            <form onSubmit={(e) => e.preventDefault()} noValidate className="flex h-full flex-col">
+            <form onSubmit={handleSubmit} className="flex h-full flex-col">
               <SheetHeader>
                 <SheetTitle>{editing.id ? 'Ubah Kelas' : 'Tambah Kelas'}</SheetTitle>
               </SheetHeader>
               <div className="flex-1 space-y-4 px-4">
-                <FormError>{error}</FormError>
                 <div className="space-y-1.5">
-                  <label htmlFor="kelas-nama" className="text-sm font-medium">
-                    Nama kelas *
+                  <label htmlFor="course-title" className="text-sm font-medium">
+                    Judul
                   </label>
-                  <Input id="kelas-nama" value={editing.nama} onChange={(e) => setEditing((c) => ({ ...c, nama: e.target.value }))} />
+                  <Input id="course-title" name="title" defaultValue={editing.title} required />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="course-description" className="text-sm font-medium">
+                    Deskripsi
+                  </label>
+                  <textarea
+                    id="course-description"
+                    name="description"
+                    defaultValue={editing.description}
+                    rows={3}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label htmlFor="kelas-kategori" className="text-sm font-medium">
-                      Kategori *
-                    </label>
-                    <select id="kelas-kategori" value={editing.idKategori} onChange={(e) => setEditing((c) => ({ ...c, idKategori: e.target.value }))} className={selectClass}>
-                      <option value="">Pilih kategori</option>
-                      {db.kategori.map((k) => (
-                        <option key={k.id} value={k.id}>
-                          {k.nama}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="text-sm font-medium">Kategori</label>
+                    <Select
+                      value={String(editing.categoryId)}
+                      onValueChange={(value) => setEditing((current) => ({ ...current, categoryId: Number(value) }))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={String(category.id)}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label htmlFor="kelas-tingkat" className="text-sm font-medium">
-                      Tingkat
-                    </label>
-                    <select id="kelas-tingkat" value={editing.tingkat} onChange={(e) => setEditing((c) => ({ ...c, tingkat: e.target.value }))} className={selectClass}>
-                      {TINGKAT.map((t) => (
-                        <option key={t}>{t}</option>
-                      ))}
-                    </select>
+                    <label className="text-sm font-medium">Level</label>
+                    <Select
+                      value={editing.level}
+                      onValueChange={(value) => setEditing((current) => ({ ...current, level: value }))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {levels.map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="kelas-deskripsi" className="text-sm font-medium">
-                    Deskripsi
-                  </label>
-                  <textarea id="kelas-deskripsi" rows={4} value={editing.deskripsi} onChange={(e) => setEditing((c) => ({ ...c, deskripsi: e.target.value }))} className={textareaClass} />
-                </div>
-                <div className="space-y-1.5">
-                  <p className="text-sm font-medium">Gambar sampul</p>
-                  <button type="button" onClick={() => fileRef.current?.click()} className="flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                    {editing.gambar ? <img src={editing.gambar} alt="Pratinjau sampul" className="h-32 w-full rounded-lg object-cover" /> : <ImagePlus className="size-6" />}
-                    Unggah JPG atau PNG, maksimal 5 MB
-                  </button>
-                  <input ref={fileRef} type="file" accept="image/jpeg,image/png" hidden onChange={pilihGambar} />
-                </div>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={editing.isPublished}
+                    onChange={(event) => setEditing((current) => ({ ...current, isPublished: event.target.checked }))}
+                  />
+                  Terbitkan kelas
+                </label>
+                <TagPicker
+                  label="Tag Gaya Belajar"
+                  options={varkOptions}
+                  value={editing.varkTags}
+                  onChange={(value) => setEditing((current) => ({ ...current, varkTags: value }))}
+                />
+                <TagPicker
+                  label="Tag Kepribadian"
+                  options={personalityOptions}
+                  value={editing.personalityTags}
+                  onChange={(value) => setEditing((current) => ({ ...current, personalityTags: value }))}
+                />
               </div>
               <SheetFooter>
-                <Button type="button" disabled={loading} onClick={() => simpan('terbit')}>
-                  Publikasikan
-                </Button>
-                <Button type="button" variant="secondary" disabled={loading} onClick={() => simpan('draf')}>
-                  Simpan sebagai Draf
-                </Button>
+                <Button type="submit">Simpan</Button>
                 <SheetClose asChild>
                   <Button type="button" variant="outline">
                     Batal
@@ -222,16 +309,8 @@ export function KelasPage() {
           )}
         </SheetContent>
       </Sheet>
-
-      <ConfirmDialog
-        open={!!hapus}
-        title={`Hapus kelas "${hapus?.nama}"?`}
-        description="Pelajaran dan tag di dalam kelas ini ikut terhapus."
-        warning={hapus && jumlahPelajar(db, hapus.id) > 0 ? 'Kelas ini sudah diikuti pelajar. Kelas hanya akan disembunyikan agar progres pelajar tidak hilang.' : null}
-        loading={loading}
-        onCancel={() => setHapus(null)}
-        onConfirm={konfirmasiHapus}
-      />
     </div>
   )
 }
+
+export { KelasPage }

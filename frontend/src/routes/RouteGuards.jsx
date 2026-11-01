@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { penggunaAktif, useDb } from '@/data/db'
 import { getHomePath } from '@/routes/getHomePath'
+import { useAuth } from '@/context/AuthContext'
 
 // Penjaga rute: memutuskan halaman boleh dibuka, atau pengguna diarahkan ke halaman lain.
 // <Outlet /> = tempat halaman anak (yang dijaga) ditampilkan.
@@ -30,17 +31,18 @@ export function StudentOnly() {
   )
 }
 
-/** Halaman admin: wajib login sebagai admin. */
+/** Halaman admin: wajib login sebagai admin (login lewat backend, lihat context/AuthContext). */
 export function AdminOnly() {
-  const { db } = useDb()
-  const u = penggunaAktif(db)
-  if (u?.peran !== 'admin') return <Navigate to="/admin/masuk" replace />
+  const { user, loading } = useAuth()
+  if (loading) return null // sedang mengecek token ke /api/auth/me
+  if (user?.role !== 'admin') return <Navigate to="/admin/masuk" replace />
   return <Outlet />
 }
 
 /** Halaman Masuk Admin: admin yang sudah login langsung ke dashboard. */
 export function AdminGuestOnly() {
-  const { db } = useDb()
-  if (penggunaAktif(db)?.peran === 'admin') return <Navigate to="/admin" replace />
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />
   return <Outlet />
 }

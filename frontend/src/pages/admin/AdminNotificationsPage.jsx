@@ -1,11 +1,12 @@
-'use client'
 import { useState } from 'react'
 import { Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { sentNotifications as initialNotifications, students } from '@/data/adminTemplateData'
+import { api } from '@/lib/api'
+import { useAction, useFetch } from '@/lib/use-fetch'
+import { ActionError, PageState } from '@/components/admin/PageState'
 
 const ALL_STUDENTS = 'all'
 
@@ -13,12 +14,18 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+// Kirim Notifikasi — data dari backend (kode dari teman, dipindah ke struktur baru)
 function AdminNotificationsPage() {
-  const [notifications, setNotifications] = useState(initialNotifications)
+  const { data, loading, error, reload } = useFetch('/admin/notifications')
+  const { data: studentList } = useFetch('/admin/students')
+  const [run, actionError] = useAction(reload)
+  const notifications = data ?? []
+  const students = studentList ?? []
   const [audience, setAudience] = useState(ALL_STUDENTS)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+    const form = event.currentTarget
     const formData = new FormData(event.currentTarget)
     const title = formData.get('title').trim()
     const body = formData.get('body').trim()
@@ -26,14 +33,14 @@ function AdminNotificationsPage() {
 
     const audienceName =
       audience === ALL_STUDENTS ? 'Semua Pelajar' : students.find((student) => String(student.id) === audience)?.name
-    const nextId = Math.max(0, ...notifications.map((notification) => notification.id)) + 1
-    setNotifications((current) => [
-      { id: nextId, title, body, audience: audienceName, sentAt: new Date().toISOString() },
-      ...current,
-    ])
-    event.currentTarget.reset()
-    setAudience(ALL_STUDENTS)
+    const ok = await run(() => api('/admin/notifications', { method: 'POST', body: { title, body, audience: audienceName } }))
+    if (ok) {
+      form.reset()
+      setAudience(ALL_STUDENTS)
+    }
   }
+
+  if (!data) return <PageState loading={loading} error={error} />
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
@@ -76,6 +83,7 @@ function AdminNotificationsPage() {
               </SelectContent>
             </Select>
           </div>
+          <ActionError message={actionError} />
           <Button type="submit" className="gap-1">
             <Send className="size-4" />
             Kirim

@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { adminMenu } from '@/components/admin/adminMenu'
-import { penggunaAktif, useDb } from '@/data/db'
+import { useAuth } from '@/context/AuthContext'
 import { PersonaLearnLogo } from '@/components/admin/Logo'
 import { AdminLink, useAdminNavigation } from '@/components/admin/AdminNavigation'
 import { useTheme } from '@/components/admin/ThemeProvider'
@@ -12,13 +12,12 @@ import { useTheme } from '@/components/admin/ThemeProvider'
 function AdminSidebar() {
   const { theme, toggleTheme } = useTheme()
   const { pathname, navigate } = useAdminNavigation()
-  const { db, aksi } = useDb()
-  const admin = penggunaAktif(db)
+  const { user, logout } = useAuth()
   const currentAdmin = {
-    name: admin?.nama ?? 'Admin',
-    email: admin?.email ?? '',
-    initials: (admin?.nama ?? 'A').split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase(),
-    avatar: admin?.foto ?? '',
+    name: user?.name ?? 'Admin',
+    email: user?.email ?? '',
+    initials: (user?.name ?? 'A').split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase(),
+    avatar: user?.avatarUrl ?? '',
   }
   const { isMobile, setOpenMobile } = useSidebar()
 
@@ -105,7 +104,7 @@ function AdminSidebar() {
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => {
-                  aksi.keluar()
+                  logout()
                   navigate('/admin/masuk', { replace: true })
                 }}
               >

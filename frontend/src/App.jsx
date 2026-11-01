@@ -1,4 +1,5 @@
 import { DbProvider } from '@/data/db'
+import { AuthProvider } from '@/context/AuthContext'
 import { RouterProvider } from '@/lib/router'
 import { ToastProvider } from '@/components/pelajar/Toast'
 import { AppRoutes } from '@/routes/AppRoutes'
@@ -8,20 +9,23 @@ import { DevPanel } from '@/dev/DevPanel'
 /**
  * Akar aplikasi. Urutan pembungkus:
  * - RouterProvider : alamat halaman (#/beranda, #/kelas/3, ...)
- * - DbProvider     : data aplikasi (akun, kelas, progres, ...)
+ * - AuthProvider   : login admin lewat backend (token, /api/auth/...)
+ * - DbProvider     : data pelajar sementara (dummy di localStorage, nanti diganti backend)
  * - ToastProvider  : pesan singkat "berhasil disimpan", dll.
  * Daftar halaman ada di routes/AppRoutes.jsx.
  */
 function App() {
   return (
     <RouterProvider>
-      <DbProvider>
-        <ToastProvider>
-          <ScrollToTop />
-          <AppRoutes />
-          {import.meta.env.DEV && <DevPanel />}
-        </ToastProvider>
-      </DbProvider>
+      <AuthProvider>
+        <DbProvider>
+          <ToastProvider>
+            <ScrollToTop />
+            <AppRoutes />
+            {import.meta.env.DEV && <DevPanel />}
+          </ToastProvider>
+        </DbProvider>
+      </AuthProvider>
     </RouterProvider>
   )
 }

@@ -1,12 +1,20 @@
-'use client'
 import { useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { challenges as initialChallenges, courses } from '@/data/adminTemplateData'
+import { api } from '@/lib/api'
+import { useAction, useFetch } from '@/lib/use-fetch'
+import { ActionError, PageState } from '@/components/admin/PageState'
 
 const NO_COURSE = 'none'
 
@@ -14,13 +22,17 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Kelola Tantangan — data dari backend (kode dari teman, dipindah ke struktur baru)
 function AdminChallengesPage() {
-  const [challenges, setChallenges] = useState(initialChallenges)
+  const { data, loading, error, reload } = useFetch('/admin/challenges')
+  const { data: courses } = useFetch('/admin/courses')
+  const [run, actionError] = useAction(reload)
+  const challenges = data ?? []
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
 
   function courseTitle(courseId) {
-    return courses.find((course) => course.id === courseId)?.title ?? 'Semua Kelas'
+    return (courses ?? []).find((course) => course.id === courseId)?.title ?? 'Semua Kelas'
   }
 
   function openCreate() {
@@ -33,11 +45,12 @@ function AdminChallengesPage() {
     setSheetOpen(true)
   }
 
-  function handleDelete(id) {
-    setChallenges((current) => current.filter((challenge) => challenge.id !== id))
+  function handleDelete(challenge) {
+    if (!confirm(`Hapus tantangan "${challenge.title}"?`)) return
+    run(() => api(`/admin/challenges/${challenge.id}`, { method: 'DELETE' }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const payload = {
@@ -50,16 +63,13 @@ function AdminChallengesPage() {
     }
     if (!payload.title) return
 
-    if (editing.id) {
-      setChallenges((current) =>
-        current.map((challenge) => (challenge.id === editing.id ? { ...challenge, ...payload } : challenge))
-      )
-    } else {
-      const nextId = Math.max(0, ...challenges.map((challenge) => challenge.id)) + 1
-      setChallenges((current) => [...current, { ...payload, id: nextId }])
-    }
-    setSheetOpen(false)
+    const request = editing.id
+      ? api(`/admin/challenges/${editing.id}`, { method: 'PATCH', body: payload })
+      : api('/admin/challenges', { method: 'POST', body: payload })
+    if (await run(() => request)) setSheetOpen(false)
   }
+
+  if (!data) return <PageState loading={loading} error={error} />
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
@@ -70,6 +80,8 @@ function AdminChallengesPage() {
           Tambah Tantangan
         </Button>
       </div>
+
+      <ActionError message={actionError} />
 
       {challenges.length === 0 ? (
         <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed text-center">
@@ -109,7 +121,7 @@ function AdminChallengesPage() {
                         variant="outline"
                         size="icon-sm"
                         aria-label={`Hapus ${challenge.title}`}
-                        onClick={() => handleDelete(challenge.id)}
+                        onClick={() => handleDelete(challenge)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -179,7 +191,7 @@ function AdminChallengesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={NO_COURSE}>Semua Kelas</SelectItem>
-                      {courses.map((course) => (
+                      {(courses ?? []).map((course) => (
                         <SelectItem key={course.id} value={String(course.id)}>
                           {course.title}
                         </SelectItem>

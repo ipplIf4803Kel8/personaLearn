@@ -1,45 +1,30 @@
-'use client'
-import { BookOpen, CheckCircle2, Tags, Users } from 'lucide-react'
-import { jumlahPelajar, useDb } from '@/data/db'
+import { BookOpen, CheckCircle2, GraduationCap, Users } from 'lucide-react'
+import { useFetch } from '@/lib/use-fetch'
+import { PageState } from '@/components/admin/PageState'
 
-// UC1-L10 Dashboard Admin: ringkasan jumlah pelajar, kelas, kategori, dan kelas terpopuler.
+const statCards = [
+  { key: 'totalStudents', label: 'Total Pelajar', icon: Users },
+  { key: 'totalCourses', label: 'Total Kelas', icon: BookOpen },
+  { key: 'activeStudents7d', label: 'Pelajar Aktif 7 Hari Terakhir', icon: GraduationCap },
+  { key: 'lessonsCompletedThisWeek', label: 'Pelajaran Diselesaikan Minggu Ini', icon: CheckCircle2 },
+]
+
+// UC1-L10 Dashboard Admin — data dari backend (kode dari teman, dipindah ke struktur baru)
 function DashboardAdminPage() {
-  const { db } = useDb()
-  const pelajar = db.pengguna.filter((u) => u.peran === 'pelajar')
-  const stats = [
-    { label: 'Total Pelajar', value: pelajar.length, icon: Users },
-    { label: 'Total Kelas', value: db.kelas.filter((k) => k.status !== 'disembunyikan').length, icon: BookOpen },
-    { label: 'Total Kategori', value: db.kategori.length, icon: Tags },
-    { label: 'Kelas Terbit', value: db.kelas.filter((k) => k.status === 'terbit').length, icon: CheckCircle2 },
-  ]
-  const terpopuler = db.kelas
-    .filter((k) => k.status === 'terbit')
-    .map((k) => ({ ...k, jumlah: jumlahPelajar(db, k.id) }))
-    .sort((a, b) => b.jumlah - a.jumlah || b.rating - a.rating)
-    .slice(0, 5)
-  const mingguan = Array.from({ length: 6 }, (_, i) => {
-    const akhir = Date.now() - (5 - i) * 7 * 864e5
-    const awal = akhir - 7 * 864e5
-    return {
-      label: `M${i + 1}`,
-      count: pelajar.filter((u) => {
-        const t = new Date(u.dibuatPada).getTime()
-        return t > awal && t <= akhir
-      }).length,
-    }
-  })
+  const { data: stats, loading, error } = useFetch('/admin/stats')
+  if (!stats) return <PageState loading={loading} error={error} />
 
   return (
-    <div data-screen="UC1-L10" className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
+    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <StatCard key={s.label} {...s} />
+        {statCards.map((card) => (
+          <StatCard key={card.key} label={card.label} value={stats[card.key]} icon={card.icon} />
         ))}
       </section>
 
       <div className="flex flex-col gap-8 lg:flex-row">
-        <WeeklySignupsChart data={mingguan} />
-        <TopCoursesList courses={terpopuler} />
+        <WeeklySignupsChart weeklySignups={stats.weeklySignups} />
+        <TopCoursesList courses={stats.topCourses} />
       </div>
     </div>
   )
@@ -59,20 +44,24 @@ function StatCard({ label, value, icon: Icon }) {
   )
 }
 
-function WeeklySignupsChart({ data }) {
-  const max = Math.max(1, ...data.map((item) => item.count))
+function WeeklySignupsChart({ weeklySignups }) {
+  const max = Math.max(1, ...weeklySignups.map((item) => item.count))
+
   return (
     <section className="flex flex-1 flex-col gap-6 rounded-2xl border p-5">
       <div>
         <h2 className="text-lg font-semibold">Pendaftaran Pelajar per Minggu</h2>
-        <p className="text-sm text-muted-foreground">Jumlah pelajar baru dalam 6 minggu terakhir</p>
+        <p className="text-sm text-muted-foreground">Jumlah pelajar baru yang mendaftar tiap minggu</p>
       </div>
       <div className="flex h-48 gap-3">
-        {data.map((item) => (
-          <div key={item.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-            <span className="text-xs text-muted-foreground">{item.count}</span>
-            <div className="w-full rounded-t-md bg-primary" style={{ height: `${Math.max(2, (item.count / max) * 100)}%` }} title={`${item.label}: ${item.count} pendaftar`} />
-            <span className="text-xs text-muted-foreground">{item.label}</span>
+        {weeklySignups.map((item) => (
+          <div key={item.week} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+            <div
+              className="w-full rounded-t-md bg-primary"
+              style={{ height: `${(item.count / max) * 100}%` }}
+              title={`${item.week}: ${item.count} pendaftar`}
+            />
+            <span className="text-xs text-muted-foreground">{item.week.replace('Minggu ', 'M')}</span>
           </div>
         ))}
       </div>
@@ -87,11 +76,13 @@ function TopCoursesList({ courses }) {
       <ol className="flex flex-col gap-4">
         {courses.map((course, index) => (
           <li key={course.id} className="flex items-center gap-3">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-medium">{index + 1}</span>
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-medium">
+              {index + 1}
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{course.nama}</p>
+              <p className="truncate font-medium">{course.title}</p>
               <p className="text-xs text-muted-foreground">
-                {course.jumlah} pelajar &middot; rating {course.rating}
+                {course.studentsCount} pelajar &middot; rating {course.rating ?? '-'}
               </p>
             </div>
           </li>
