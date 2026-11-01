@@ -12,7 +12,7 @@ const DbContext = createContext(null)
 function muat() {
   try {
     const simpan = JSON.parse(localStorage.getItem(KUNCI))
-    if (simpan?.versi === 1) return simpan
+    if (simpan?.versi === 3) return simpan
   } catch {
     /* data rusak: mulai dari seed */
   }
@@ -92,6 +92,7 @@ export function DbProvider({ children }) {
         const u = ref.current.pengguna.find((x) => x.email.toLowerCase() === email.trim().toLowerCase())
         if (!u || u.kataSandi !== kataSandi || (peran === 'admin' && u.peran !== 'admin'))
           return { ok: false, pesan: 'Email atau kata sandi tidak cocok. Periksa kembali, ya.' }
+        if (u.aktif === false) return { ok: false, pesan: 'Akun dinonaktifkan. Hubungi admin.' }
         commit((d) => ({ ...d, sesi: { idPengguna: u.id, peran: u.peran } }))
         return { ok: true, pengguna: u }
       },

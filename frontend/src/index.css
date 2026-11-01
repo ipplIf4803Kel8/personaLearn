@@ -75,6 +75,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Selalu sediakan ruang scrollbar, supaya halaman tidak bergeser ke kiri-kanan
+     saat pindah antara halaman/tab yang pendek (tanpa scrollbar) dan yang panjang. */
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground;
   }

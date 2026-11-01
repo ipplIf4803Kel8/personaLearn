@@ -7,7 +7,7 @@ import { ChatBubble, MessageInput, BotHeader, botGreeting, formatChatTime } from
 import { EmptyState } from '@/components/pelajar/DataState'
 import { useToast } from '@/components/pelajar/Toast'
 import { Button } from '@/components/pelajar/Button'
-import { kelasDiikutiSaya, pelajaranKelas, penggunaAktif, useDb } from '@/data/db'
+import { kategoriDari, kelasDiikutiSaya, pelajaranKelas, penggunaAktif, useDb } from '@/data/db'
 import { useRouter } from '@/lib/router'
 import { cn } from '@/lib/utils'
 
@@ -62,7 +62,16 @@ export function VideoPembelajaranPage() {
     <Screen kode="UC6-L02" back title={p.judul} bell className="px-0 pb-28">
       <div className="px-6">
         <div className="overflow-hidden rounded-3xl bg-[#3A3A3A] shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
-          {gagalPutar || offline ? (
+          {!p.urlVideo ? (
+            // Sementara belum ada video: tampilkan gambar materi
+            <div className="flex aspect-[16/9] flex-col items-center justify-center gap-2 bg-gradient-to-br from-[#E8E0FF] to-[#CBB9FF] p-6 text-center">
+              <span aria-hidden="true" className="text-5xl">
+                {kategoriDari(db, kelas?.idKategori)?.ikon ?? '📘'}
+              </span>
+              <p className="text-base font-semibold text-[#24252C]">{p.judul}</p>
+              <p className="text-xs text-[#5F33E1]">Video segera hadir. Baca ringkasan materi di bawah, ya.</p>
+            </div>
+          ) : gagalPutar || offline ? (
             <div className="flex aspect-[16/9] flex-col items-center justify-center gap-3 p-6 text-center text-white">
               <MdErrorOutline className="size-10 text-rose-300" />
               <p className="font-medium">Video belum bisa diputar.</p>
@@ -112,6 +121,13 @@ export function VideoPembelajaranPage() {
             </button>
           </div>
         </div>
+
+        {p.deskripsi && (
+          <div className="mt-4 rounded-2xl bg-[#F5F1FF] p-4">
+            <p className="text-xs font-semibold tracking-wide text-[#5F33E1] uppercase">Ringkasan Materi</p>
+            <p className="mt-1 text-sm leading-relaxed text-[#24252C]">{p.deskripsi}</p>
+          </div>
+        )}
 
         {query.belajar && ikut && (
           <Button className="mt-4 w-full py-3 text-sm" loading={menyimpan} disabled={sudahSelesai} onClick={selesai}>
