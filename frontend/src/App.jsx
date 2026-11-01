@@ -1,43 +1,29 @@
-import { useState } from 'react'
-import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
-import { LoginScreen, RegisterScreen } from '@/components/auth/auth-screen'
-import DemostackDashboardDemo from '@/components/dashboards/demostack-dashboard/demo'
+import { DbProvider } from '@/data/db'
+import { RouterProvider } from '@/lib/router'
+import { ToastProvider } from '@/components/pelajar/Toast'
+import { AppRoutes } from '@/routes/AppRoutes'
+import { ScrollToTop } from '@/routes/ScrollToTop'
+import { DevPanel } from '@/dev/DevPanel'
 
+/**
+ * Akar aplikasi. Urutan pembungkus:
+ * - RouterProvider : alamat halaman (#/beranda, #/kelas/3, ...)
+ * - DbProvider     : data aplikasi (akun, kelas, progres, ...)
+ * - ToastProvider  : pesan singkat "berhasil disimpan", dll.
+ * Daftar halaman ada di routes/AppRoutes.jsx.
+ */
 function App() {
-  const [screen, setScreen] = useState('onboarding')
-
-  if (screen === 'onboarding') {
-    return <OnboardingWelcome onGetStarted={() => setScreen('login')} />
-  }
-
-  if (screen === 'login') {
-    return (
-      <LoginScreen
-        onSubmit={(data) => {
-          console.log('Login:', data)
-          setScreen('app')
-        }}
-        onForgotPassword={() => console.log('Forgot password')}
-        onSwitchToRegister={() => setScreen('register')}
-        onSocialLogin={(provider) => console.log('Social login:', provider)}
-      />
-    )
-  }
-
-  if (screen === 'register') {
-    return (
-      <RegisterScreen
-        onSubmit={(data) => {
-          console.log('Register:', data)
-          setScreen('app')
-        }}
-        onSwitchToLogin={() => setScreen('login')}
-        onSocialLogin={(provider) => console.log('Social login:', provider)}
-      />
-    )
-  }
-
-  return <DemostackDashboardDemo />
+  return (
+    <RouterProvider>
+      <DbProvider>
+        <ToastProvider>
+          <ScrollToTop />
+          <AppRoutes />
+          {import.meta.env.DEV && <DevPanel />}
+        </ToastProvider>
+      </DbProvider>
+    </RouterProvider>
+  )
 }
 
 export default App
