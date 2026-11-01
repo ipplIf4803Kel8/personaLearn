@@ -10,7 +10,9 @@ import { useAuth } from '@/context/AuthContext'
 /** Halaman publik (Splash, Masuk, Daftar, ...): hanya untuk yang belum login. */
 export function GuestOnly() {
   const { db } = useDb()
+  const { user } = useAuth()
   const u = penggunaAktif(db)
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />
   if (u) return <Navigate to={getHomePath(u)} replace />
   return <Outlet />
 }
