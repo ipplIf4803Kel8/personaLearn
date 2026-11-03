@@ -1,5 +1,6 @@
 import pool from '../config/db.js'
 import { crud, toCamel } from '../services/crud.service.js'
+import { courseService } from '../services/course.service.js'
 
 export const categories = crud('categories', ['name', 'slug'], { required: ['name', 'slug'] })
 
@@ -29,17 +30,10 @@ export async function listLessons(req, res) {
   res.json(rows.map(toCamel))
 }
 
-export async function createLesson(req, res) {
-  const { title, videoUrl = '', durationSeconds = 0, description = '' } = req.body
-  if (!title?.trim()) return res.status(400).json({ message: 'Field wajib diisi: title' })
-  const { rows } = await pool.query(
-    `INSERT INTO lessons (course_id, title, video_url, duration_seconds, description, position)
-     VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(position) FROM lessons WHERE course_id = $1), 0) + 1)
-     RETURNING *`,
-    [req.params.id, title.trim(), videoUrl, durationSeconds, description]
-  )
-  res.status(201).json(toCamel(rows[0]))
-}
+export const createLesson = async (req, res) =>
+  res.status(201).json(await courseService.addLesson(req.params.id, req.body))
+
+export const createCourse = async (req, res) => res.status(201).json(await courseService.create(req.body))
 
 // body: { ids: [urutan id pelajaran yang baru] }
 export async function reorderLessons(req, res) {

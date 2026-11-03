@@ -9,7 +9,7 @@
     "start": "node src/server.js",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
-    "test": "DB_NAME=personalearn_test node scripts/migrate.js && DB_NAME=personalearn_test node --test test/*.test.js"
+    "test": "DB_NAME=personalearn_test node scripts/migrate.js && DB_NAME=personalearn_test node --test-concurrency=1 --test test/*.test.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
