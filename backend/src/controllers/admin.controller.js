@@ -44,7 +44,9 @@ export async function createLesson(req, res) {
 // body: { ids: [urutan id pelajaran yang baru] }
 export async function reorderLessons(req, res) {
   const ids = req.body.ids
-  if (!Array.isArray(ids)) return res.status(400).json({ message: 'ids harus berupa array' })
+  if (!Array.isArray(ids) || !ids.every(Number.isInteger)) {
+    return res.status(400).json({ message: 'ids harus berupa array bilangan bulat' })
+  }
   await pool.query(
     `UPDATE lessons SET position = v.pos FROM unnest($1::int[]) WITH ORDINALITY AS v(id, pos)
      WHERE lessons.id = v.id AND lessons.course_id = $2`,
@@ -99,7 +101,15 @@ export async function setStudentActive(req, res) {
   res.json(toCamel(rows[0]))
 }
 
+const DATE = /^\d{4}-\d{2}-\d{2}$/
+
 export async function getReports(req, res) {
+  const { from = null, to = null } = req.query
+  if ([from, to].some((d) => d !== null && !DATE.test(d)) || (from && to && from > to)) {
+    return res.status(400).json({ message: 'Rentang tanggal tidak valid (format YYYY-MM-DD, dari <= sampai)' })
+  }
+  const range = (col) => `($1::date IS NULL OR ${col} >= $1::date) AND ($2::date IS NULL OR ${col} < $2::date + 1)`
+  const count = async (sql) => (await pool.query(sql, [from, to])).rows[0].n
   const progressByCourse = await one(`
     SELECT c.id, c.title, COALESCE(ROUND(AVG(e.progress_percent)), 0)::int AS average_progress,
       COUNT(e.user_id)::int AS enrolled_count
@@ -112,10 +122,16 @@ export async function getReports(req, res) {
     SELECT COUNT(*)::int AS total_messages,
       COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS this_week
     FROM chat_messages`)
+  const period = {
+    chatMessages: await count(`SELECT COUNT(*)::int AS n FROM chat_messages WHERE ${range('created_at')}`),
+    lessonsCompleted: await count(`SELECT COUNT(*)::int AS n FROM lesson_progress WHERE ${range('completed_at')}`),
+    newStudents: await count(`SELECT COUNT(*)::int AS n FROM users WHERE role = 'student' AND ${range('created_at')}`),
+  }
   res.json({
     progressByCourse: progressByCourse.map(toCamel),
     highestRated: rated[0] ?? null,
     lowestRated: rated.at(-1) ?? null,
     chatMessageStats: toCamel(chat),
+    period,
   })
 }

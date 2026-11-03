@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import { useAction, useFetch } from '@/lib/use-fetch'
 import { ActionError, PageState } from './page-state'
+import { matchesQuery, useDashboardNavigation } from './navigation'
 
 const levels = ['Beginner', 'Intermediate', 'Advanced']
 const varkOptions = ['visual', 'auditory', 'reading', 'kinesthetic']
@@ -59,6 +60,7 @@ function ClassesContent() {
   const [run, actionError] = useAction(reload)
   const courses = data ?? []
   const categories = categoryData ?? []
+  const { query } = useDashboardNavigation()
   const [selectedCourseId, setSelectedCourseId] = useState(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -68,12 +70,12 @@ function ClassesContent() {
 
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => {
-      const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase())
+      const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase()) && matchesQuery(query, course.title, course.description)
       const matchesCategory = categoryFilter === 'all' || course.categoryId === Number(categoryFilter)
       const matchesLevel = levelFilter === 'all' || course.level === levelFilter
       return matchesSearch && matchesCategory && matchesLevel
     })
-  }, [courses, search, categoryFilter, levelFilter])
+  }, [courses, search, query, categoryFilter, levelFilter])
 
   function categoryName(categoryId) {
     return categories.find((category) => category.id === categoryId)?.name ?? '-'

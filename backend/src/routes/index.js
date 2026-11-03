@@ -2,14 +2,14 @@ import { Router } from 'express'
 import { getHealth } from '../controllers/health.controller.js'
 import { login, me, register } from '../controllers/auth.controller.js'
 import * as admin from '../controllers/admin.controller.js'
-import { requireAdmin, requireAuth } from '../middlewares/auth.js'
+import { limitLogin, requireAdmin, requireAuth } from '../middlewares/auth.js'
 
 const router = Router()
 
 router.get('/health', getHealth)
 
 router.post('/auth/register', register)
-router.post('/auth/login', login)
+router.post('/auth/login', limitLogin, login)
 router.get('/auth/me', requireAuth, me)
 
 const adminRouter = Router()
@@ -39,6 +39,7 @@ adminRouter.delete('/lessons/:id', admin.lessons.remove)
 
 adminRouter.get('/notifications', admin.notifications.list)
 adminRouter.post('/notifications', admin.notifications.create)
+adminRouter.delete('/notifications/:id', admin.notifications.remove)
 
 router.use('/admin', adminRouter)
 

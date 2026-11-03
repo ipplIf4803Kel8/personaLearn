@@ -12,9 +12,18 @@ function DashboardNavigationProvider({
   initialPathname = "/"
 }) {
   const [pathname, setPathname] = useState(initialPathname);
+  const [query, setQuery] = useState("");
   const value = useMemo(
-    () => ({ pathname, navigate: setPathname }),
-    [pathname]
+    () => ({
+      pathname,
+      query,
+      setQuery,
+      navigate: (href) => {
+        setPathname(href);
+        setQuery("");
+      }
+    }),
+    [pathname, query]
   );
   return <DashboardNavigationContext.Provider value={value}>
       {children}
@@ -29,6 +38,10 @@ function useDashboardNavigation() {
   }
   return context;
 }
+const matchesQuery = (query, ...fields) => {
+  const q = query.trim().toLowerCase();
+  return !q || fields.some((f) => String(f ?? "").toLowerCase().includes(q));
+};
 function DashboardLink({
   href,
   onClick,
@@ -46,6 +59,7 @@ function DashboardLink({
   return <a href={href} onClick={handleClick} {...props} />;
 }
 export {
+  matchesQuery,
   DashboardLink,
   DashboardNavigationProvider,
   useDashboardNavigation

@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import { useAction, useFetch } from '@/lib/use-fetch'
 import { ActionError, PageState } from './page-state'
+import { matchesQuery, useDashboardNavigation } from './navigation'
 
 const NO_COURSE = 'none'
 
@@ -27,7 +28,8 @@ function ChallengesContent() {
   const { data, loading, error, reload } = useFetch('/admin/challenges')
   const { data: courses } = useFetch('/admin/courses')
   const [run, actionError] = useAction(reload)
-  const challenges = data ?? []
+  const { query } = useDashboardNavigation()
+  const challenges = (data ?? []).filter((c) => matchesQuery(query, c.title, c.description))
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
 

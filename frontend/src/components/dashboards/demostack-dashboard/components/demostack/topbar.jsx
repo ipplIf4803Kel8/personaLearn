@@ -23,9 +23,8 @@ import { DashboardLink, useDashboardNavigation } from "./navigation";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 const navigationItems = adminNavigation;
 function DashboardTopbar() {
-  const { pathname } = useDashboardNavigation();
+  const { pathname, query: searchQuery, setQuery: setSearchQuery } = useDashboardNavigation();
   const { data: sentNotifications } = useFetch("/admin/notifications");
-  const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
   const mobileSearchInputRef = useRef(null);

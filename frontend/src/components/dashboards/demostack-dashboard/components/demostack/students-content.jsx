@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import { useAction, useFetch } from '@/lib/use-fetch'
 import { ActionError, PageState } from './page-state'
+import { matchesQuery, useDashboardNavigation } from './navigation'
 
 function initials(name) {
   return name
@@ -24,7 +25,8 @@ function StudentsContent() {
   const { data: courses } = useFetch('/admin/courses')
   const [run, actionError] = useAction(reload)
   const [selected, setSelected] = useState(null)
-  const students = data ?? []
+  const { query } = useDashboardNavigation()
+  const students = (data ?? []).filter((s) => matchesQuery(query, s.name, s.email))
 
   const courseTitle = (courseId) =>
     (courses ?? []).find((course) => course.id === courseId)?.title ?? 'Kelas tidak ditemukan'

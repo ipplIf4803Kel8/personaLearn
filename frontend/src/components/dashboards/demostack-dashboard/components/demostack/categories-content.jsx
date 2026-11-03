@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import { useAction, useFetch } from '@/lib/use-fetch'
 import { ActionError, PageState } from './page-state'
+import { matchesQuery, useDashboardNavigation } from './navigation'
 
 function slugify(value) {
   return value
@@ -27,7 +28,8 @@ function slugify(value) {
 function CategoriesContent() {
   const { data, loading, error, reload } = useFetch('/admin/categories')
   const [run, actionError] = useAction(reload)
-  const categories = data ?? []
+  const { query } = useDashboardNavigation()
+  const categories = (data ?? []).filter((c) => matchesQuery(query, c.name, c.slug))
   const [editing, setEditing] = useState(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
