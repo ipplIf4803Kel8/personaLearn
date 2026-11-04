@@ -96,6 +96,19 @@ export function DbProvider({ children }) {
         commit((d) => ({ ...d, sesi: { idPengguna: u.id, peran: u.peran } }))
         return { ok: true, pengguna: u }
       },
+      // Login lewat backend berhasil: pakai profil dummy dengan email yang sama (dibuat kalau belum ada),
+      // supaya halaman yang belum punya API (progres, tantangan, notifikasi, ...) tetap jalan.
+      masukDariServer(user) {
+        clearAsyncCache()
+        const email = user.email.toLowerCase()
+        let u = ref.current.pengguna.find((x) => x.email.toLowerCase() === email)
+        if (!u) {
+          u = { id: nextId(ref.current.pengguna), nama: user.name, email: user.email, kataSandi: null, noTelepon: user.phone ?? '', foto: user.avatarUrl ?? null, peran: 'pelajar', aktif: true, tipeMbti: user.mbtiType ?? null, poin: 0, streak: 0, onboardingSelesai: Boolean(user.mbtiType), dibuatPada: user.createdAt ?? new Date().toISOString() }
+          commit((d) => ({ ...d, pengguna: [...d.pengguna, u] }))
+        }
+        commit((d) => ({ ...d, sesi: { idPengguna: u.id, peran: 'pelajar' } }))
+        return u
+      },
       async masukOAuth(penyedia) {
         await jeda()
         const email = `${penyedia.toLowerCase()}.pelajar@example.com`

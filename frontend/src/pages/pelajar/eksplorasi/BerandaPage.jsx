@@ -8,15 +8,16 @@ import { NotificationBell } from '@/components/pelajar/NotificationBell'
 import { HEADING_FONT } from '@/components/pelajar/theme'
 import { penggunaAktif, useDb } from '@/data/db'
 import { useAsync } from '@/hooks/useAsync'
+import { kelasPopuler } from '@/data/courseApi'
 import { useRouter } from '@/lib/router'
 import { cn } from '@/lib/utils'
 
 // UC2-L01 Beranda
 export function BerandaPage() {
   const { navigate } = useRouter()
-  const { db, aksi } = useDb()
+  const { db } = useDb()
   const u = penggunaAktif(db)
-  const populer = useAsync(() => aksi.kelasPopuler(), [])
+  const populer = useAsync(() => kelasPopuler(), []) // data dari backend
   const jumlahTerbit = db.kelas.filter((k) => k.status === 'terbit').length
   return (
     <Screen kode="UC2-L01" nav>

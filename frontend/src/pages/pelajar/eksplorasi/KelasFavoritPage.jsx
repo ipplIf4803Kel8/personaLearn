@@ -1,23 +1,22 @@
-import { useMemo } from 'react'
 import { CourseCard } from '@/components/pelajar/CourseCard'
 import { Screen } from '@/components/pelajar/Screen'
-import { EmptyState } from '@/components/pelajar/DataState'
+import { EmptyState, ErrorState, Loading } from '@/components/pelajar/DataState'
 import { Button } from '@/components/pelajar/Button'
-import { useDb } from '@/data/db'
+import { cariKelas } from '@/data/courseApi'
+import { useAsync } from '@/hooks/useAsync'
 import { useRouter } from '@/lib/router'
 
-// UC2-L07 Kelas Favorit (kondisi B: belum ada favorit)
+// UC2-L07 Kelas Favorit (kondisi B: belum ada favorit). Data dari backend (GET /courses?favoritesOnly=true).
 export function KelasFavoritPage() {
   const { navigate } = useRouter()
-  const { db } = useDb()
-  const id = db.sesi?.idPengguna
-  const daftar = useMemo(
-    () => db.favorit.filter((f) => f.idPengguna === id).map((f) => db.kelas.find((k) => k.id === f.idKelas)).filter((k) => k && k.status === 'terbit'),
-    [db, id],
-  )
+  const daftar = useAsync(() => cariKelas({ favoritSaja: true }), [])
   return (
     <Screen kode="UC2-L07" back title="Kelas Favorit" nav>
-      {daftar.length === 0 ? (
+      {daftar.memuat ? (
+        <Loading />
+      ) : daftar.gagal ? (
+        <ErrorState title="Kelas favorit gagal dimuat" onRetry={daftar.ulangi} />
+      ) : daftar.data.length === 0 ? (
         <EmptyState
           title="Belum ada kelas favorit"
           desc="Tekan ikon hati pada kelas untuk menyimpannya di sini."
@@ -25,8 +24,9 @@ export function KelasFavoritPage() {
         />
       ) : (
         <div className="mt-2 space-y-4">
-          {daftar.map((k) => (
-            <CourseCard key={k.id} kelas={k} />
+          {daftar.data.map((k) => (
+            // Setelah hati ditekan, daftar dimuat ulang supaya kelas yang dihapus hilang.
+            <CourseCard key={k.id} kelas={k} onUbahFavorit={daftar.ulangi} />
           ))}
         </div>
       )}

@@ -9,6 +9,7 @@ import { Loading, ErrorState, EmptyState } from '@/components/pelajar/DataState'
 import { TextLink, Button } from '@/components/pelajar/Button'
 import { useDb } from '@/data/db'
 import { useAsync } from '@/hooks/useAsync'
+import { cariKelas } from '@/data/courseApi'
 import { useRouter } from '@/lib/router'
 
 export const TINGKAT = ['Pemula', 'Menengah', 'Lanjut']
@@ -24,13 +25,13 @@ export const DURASI = [
 // UC2-L02 Cari Kelas + UC2-L03 Filter Kelas (kondisi C: hasil kosong, D: koneksi bermasalah)
 export function CariKelasPage() {
   const { navigate, query } = useRouter()
-  const { db, aksi } = useDb()
+  const { db } = useDb()
   const [q, setQ] = useState('')
   const [idKategori, setIdKategori] = useState(null)
   const [filter, setFilter] = useState({ tingkat: [], ratingMin: 0, durasi: null })
   const [draf, setDraf] = useState({ ...filter, idKategori: null })
   const [panel, setPanel] = useState(query.filter === '1')
-  const hasil = useAsync(() => aksi.cariKelas({ q, idKategori, ...filter }), [q, idKategori, filter])
+  const hasil = useAsync(() => cariKelas({ q, idKategori, ...filter }), [q, idKategori, filter]) // data dari backend
   const jumlahFilter = filter.tingkat.length + (filter.ratingMin ? 1 : 0) + (filter.durasi ? 1 : 0)
   const filterGagal = db.simulasi.koneksi
   const kategoriUrut = [...db.kategori].sort((a, b) => (b.id === idKategori) - (a.id === idKategori))

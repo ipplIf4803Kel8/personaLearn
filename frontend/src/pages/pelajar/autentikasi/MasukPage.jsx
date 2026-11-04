@@ -5,7 +5,10 @@ import { useRouter } from '@/lib/router'
 import { getHomePath } from '@/routes/getHomePath'
 import { useAuth } from '@/context/AuthContext'
 
-// UC1-L02 Masuk (kondisi B: login gagal). Dipakai pelajar DAN admin (admin dicek ke backend).
+export const SERVER_MATI = 'Tidak dapat terhubung ke server' // pesan dari lib/api.js
+
+// UC1-L02 Masuk (kondisi B: login gagal). Pelajar dan admin login ke backend (context/AuthContext).
+// Kalau server tidak bisa dihubungi, pelajar masih bisa masuk dengan data dummy (mode uji tanpa backend).
 export function MasukPage() {
   const { navigate } = useRouter()
   const { aksi } = useDb()
@@ -20,15 +23,18 @@ export function MasukPage() {
         onSubmit={async ({ email, password }) => {
           setLoading(true)
           setPesan('')
-          // 1. Cek ke backend dulu: akun admin login lewat server (lihat context/AuthContext).
           try {
             const user = await auth.login({ email, password })
             if (user.role === 'admin') return navigate('/admin', { replace: true })
-            auth.logout() // akun pelajar: sementara halaman pelajar masih memakai data dummy
-          } catch {
-            // email/sandi tidak ada di server, atau server mati -> lanjut ke data dummy
+            const profil = aksi.masukDariServer(user)
+            return navigate(getHomePath(profil), { replace: true })
+          } catch (err) {
+            if (err.message !== SERVER_MATI) {
+              setLoading(false)
+              return setPesan(err.message) // mis. "Email atau kata sandi salah", "Akun dinonaktifkan"
+            }
           }
-          // 2. Pelajar: masih data dummy (data/db.jsx) sampai endpoint pelajar di backend siap.
+          // Server mati: coba data dummy (data/db.jsx).
           const r = await aksi.masuk({ email, kataSandi: password })
           setLoading(false)
           if (!r.ok) return setPesan(r.pesan)

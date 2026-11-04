@@ -11,6 +11,7 @@ import { NotificationBell } from '@/components/pelajar/NotificationBell'
 import { HEADING_FONT } from '@/components/pelajar/theme'
 import { penggunaAktif, useDb } from '@/data/db'
 import { useRouter } from '@/lib/router'
+import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 
 export function MoreMenu() {
@@ -50,6 +51,7 @@ export function ProfileLayout({ kode, pesan, children }) {
   const u = penggunaAktif(db)
   const [keluar, setKeluar] = useState(false)
   const { aksi } = useDb()
+  const { logout } = useAuth()
   return (
     <Screen
       kode={kode}
@@ -126,6 +128,7 @@ export function ProfileLayout({ kode, pesan, children }) {
             className="mt-6 w-full"
             onClick={() => {
               aksi.keluar()
+              logout() // keluar juga dari backend (hapus token)
               navigate('/masuk', { replace: true })
             }}
           >

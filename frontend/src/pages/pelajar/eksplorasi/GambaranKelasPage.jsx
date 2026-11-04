@@ -5,11 +5,13 @@ import { useParams } from 'react-router'
 import { CourseThumbnail } from '@/components/pelajar/CourseCard'
 import { Screen } from '@/components/pelajar/Screen'
 import { BottomSheet } from '@/components/pelajar/BottomSheet'
-import { EmptyState } from '@/components/pelajar/DataState'
+import { ErrorState, Loading } from '@/components/pelajar/DataState'
 import { useToast } from '@/components/pelajar/Toast'
 import { Button } from '@/components/pelajar/Button'
 import { formatDuration, HEADING_FONT } from '@/components/pelajar/theme'
-import { durasiKelas, kelasDiikutiSaya, pelajaranKelas, useDb } from '@/data/db'
+import { kelasDiikutiSaya, useDb } from '@/data/db'
+import { ambilKelas, detailKelas } from '@/data/courseApi'
+import { useAsync } from '@/hooks/useAsync'
 import { useRouter } from '@/lib/router'
 import { cn } from '@/lib/utils'
 
@@ -18,30 +20,40 @@ export function durasiMenitDetik(menit) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')} mnt`
 }
 
-// UC2-L04 Gambaran Kelas (alur E: gagal bergabung, alur F: lihat materi)
+// UC2-L04 Gambaran Kelas (alur E: gagal bergabung, alur F: lihat materi).
+// Detail kelas & Ambil Kelas dari backend (GET /courses/:id, POST /courses/:id/enroll).
 export function GambaranKelasPage() {
   const params = useParams()
   const { navigate } = useRouter()
   const { db, aksi } = useDb()
   const toast = useToast()
   const id = Number(params.id)
-  const kelas = db.kelas.find((k) => k.id === id)
+  const muat = useAsync(() => detailKelas(id), [id])
   const [tab, setTab] = useState('pelajaran')
   const [gagal, setGagal] = useState(false)
   const [loading, setLoading] = useState(false)
-  if (!kelas || kelas.status !== 'terbit')
+  if (muat.memuat)
     return (
       <Screen back title="Gambaran Kelas">
-        <EmptyState title="Kelas tidak tersedia" />
+        <Loading />
       </Screen>
     )
-  const daftar = pelajaranKelas(db, id)
-  const sudahIkut = kelasDiikutiSaya(db).some((k) => k.idKelas === id)
+  if (muat.gagal || !muat.data)
+    return (
+      <Screen back title="Gambaran Kelas">
+        <ErrorState title="Kelas tidak tersedia atau koneksi ke server bermasalah" onRetry={muat.ulangi} />
+      </Screen>
+    )
+  const kelas = muat.data
+  const daftar = kelas.pelajaran
+  const sudahIkut = kelas.sudahIkut || kelasDiikutiSaya(db).some((k) => k.idKelas === id)
 
   async function ambil() {
     setLoading(true)
     try {
-      await aksi.ambilKelas(id)
+      await ambilKelas(id)
+      // Halaman Kelas Anda & Lanjut Belajar masih memakai data dummy, jadi ikut dicatat di sana.
+      await aksi.ambilKelas(id).catch(() => {})
       navigate(`/kelas/${id}/berhasil`, { replace: true })
     } catch {
       setGagal(true)
@@ -56,7 +68,7 @@ export function GambaranKelasPage() {
       <h1 className="mt-6 text-xl font-medium text-[#24252C]">{kelas.nama}</h1>
       <div className="mt-2 flex items-center gap-6 text-base text-[#8A8A94]">
         <span className="inline-flex items-center gap-1.5">
-          <TbClockHour4 className="size-5" /> {formatDuration(durasiKelas(db, id))}
+          <TbClockHour4 className="size-5" /> {formatDuration(kelas.durasi)}
         </span>
         <span>{daftar.length} Pelajaran</span>
         <span className="ml-auto inline-flex items-center gap-1 rounded-lg bg-[#FBFAE2] px-2.5 py-1 text-base text-[#5F33E1]">
