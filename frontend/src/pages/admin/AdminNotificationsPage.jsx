@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Send } from 'lucide-react'
+import { Send, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import { useAction, useFetch } from '@/lib/use-fetch'
 import { ActionError, PageState } from '@/components/admin/PageState'
+import { matchesQuery, useAdminNavigation } from '@/components/admin/AdminNavigation'
 
 const ALL_STUDENTS = 'all'
 
@@ -19,7 +20,8 @@ function AdminNotificationsPage() {
   const { data, loading, error, reload } = useFetch('/admin/notifications')
   const { data: studentList } = useFetch('/admin/students')
   const [run, actionError] = useAction(reload)
-  const notifications = data ?? []
+  const { query } = useAdminNavigation()
+  const notifications = (data ?? []).filter((n) => matchesQuery(query, n.title, n.body, n.audience))
   const students = studentList ?? []
   const [audience, setAudience] = useState(ALL_STUDENTS)
 
@@ -37,6 +39,12 @@ function AdminNotificationsPage() {
     if (ok) {
       form.reset()
       setAudience(ALL_STUDENTS)
+    }
+  }
+
+  function handleDelete(notification) {
+    if (window.confirm(`Hapus notifikasi "${notification.title}"?`)) {
+      run(() => api(`/admin/notifications/${notification.id}`, { method: 'DELETE' }))
     }
   }
 
@@ -100,6 +108,7 @@ function AdminNotificationsPage() {
                 <TableHead>Notifikasi</TableHead>
                 <TableHead>Tujuan</TableHead>
                 <TableHead className="text-right">Waktu Kirim</TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -111,6 +120,16 @@ function AdminNotificationsPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{notification.audience}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{formatDateTime(notification.sentAt)}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label={`Hapus ${notification.title}`}
+                      onClick={() => handleDelete(notification)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

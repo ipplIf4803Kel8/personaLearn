@@ -3,12 +3,14 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import { AdminSidebar } from '@/components/admin/Sidebar'
 import { AdminTopbar } from '@/components/admin/Topbar'
 import { ThemeProvider } from '@/components/admin/ThemeProvider'
+import { AdminSearchProvider } from '@/components/admin/AdminNavigation'
 import '@/components/admin/admin.css'
 
 // Kerangka semua halaman admin: sidebar kiri, topbar, lalu isi halaman (<Outlet />) sesuai alamat.
 export function AdminLayout() {
   return (
     <ThemeProvider>
+      <AdminSearchProvider>
       <SidebarProvider
         className="demostack-dashboard no-scrollbar h-svh gap-6 overflow-hidden"
         style={{ '--sidebar-width': '16.25rem', '--sidebar-width-icon': '5.125rem' }}
@@ -25,6 +27,7 @@ export function AdminLayout() {
           </div>
         </main>
       </SidebarProvider>
+      </AdminSearchProvider>
     </ThemeProvider>
   )
 }

@@ -18,6 +18,7 @@ import { useAction, useFetch } from '@/lib/use-fetch'
 import { ActionError, PageState } from '@/components/admin/PageState'
 
 import { useRouter } from '@/lib/router'
+import { matchesQuery, useAdminNavigation } from '@/components/admin/AdminNavigation'
 import { TagPicker, personalityOptions, varkOptions } from '@/components/admin/TagPicker'
 
 const levels = ['Beginner', 'Intermediate', 'Advanced']
@@ -30,6 +31,7 @@ function KelasPage() {
   const courses = data ?? []
   const categories = categoryData ?? []
   const { navigate } = useRouter()
+  const { query } = useAdminNavigation()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [levelFilter, setLevelFilter] = useState('all')
@@ -38,12 +40,12 @@ function KelasPage() {
 
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => {
-      const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase())
+      const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase()) && matchesQuery(query, course.title, course.description)
       const matchesCategory = categoryFilter === 'all' || course.categoryId === Number(categoryFilter)
       const matchesLevel = levelFilter === 'all' || course.level === levelFilter
       return matchesSearch && matchesCategory && matchesLevel
     })
-  }, [courses, search, categoryFilter, levelFilter])
+  }, [courses, search, query, categoryFilter, levelFilter])
 
   function categoryName(categoryId) {
     return categories.find((category) => category.id === categoryId)?.name ?? '-'

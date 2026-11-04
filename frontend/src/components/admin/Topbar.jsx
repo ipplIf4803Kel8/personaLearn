@@ -11,9 +11,8 @@ import { AdminLink, useAdminNavigation } from '@/components/admin/AdminNavigatio
 import { SidebarTrigger } from "@/components/ui/sidebar";
 const navigationItems = adminMenu;
 function AdminTopbar() {
-  const { pathname } = useAdminNavigation();
+  const { pathname, query: searchQuery, setQuery: setSearchQuery } = useAdminNavigation();
   const { data: sentNotifications } = useFetch('/admin/notifications');
-  const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
   const mobileSearchInputRef = useRef(null);

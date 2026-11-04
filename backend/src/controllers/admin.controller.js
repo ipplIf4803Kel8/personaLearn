@@ -1,5 +1,6 @@
 import pool from '../config/db.js'
 import { crud, toCamel } from '../services/crud.service.js'
+import { courseService } from '../services/course.service.js'
 
 export const categories = crud('categories', ['name', 'slug'], { required: ['name', 'slug'] })
 
@@ -29,22 +30,17 @@ export async function listLessons(req, res) {
   res.json(rows.map(toCamel))
 }
 
-export async function createLesson(req, res) {
-  const { title, videoUrl = '', durationSeconds = 0, description = '' } = req.body
-  if (!title?.trim()) return res.status(400).json({ message: 'Field wajib diisi: title' })
-  const { rows } = await pool.query(
-    `INSERT INTO lessons (course_id, title, video_url, duration_seconds, description, position)
-     VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(position) FROM lessons WHERE course_id = $1), 0) + 1)
-     RETURNING *`,
-    [req.params.id, title.trim(), videoUrl, durationSeconds, description]
-  )
-  res.status(201).json(toCamel(rows[0]))
-}
+export const createLesson = async (req, res) =>
+  res.status(201).json(await courseService.addLesson(req.params.id, req.body))
+
+export const createCourse = async (req, res) => res.status(201).json(await courseService.create(req.body))
 
 // body: { ids: [urutan id pelajaran yang baru] }
 export async function reorderLessons(req, res) {
   const ids = req.body.ids
-  if (!Array.isArray(ids)) return res.status(400).json({ message: 'ids harus berupa array' })
+  if (!Array.isArray(ids) || !ids.every(Number.isInteger)) {
+    return res.status(400).json({ message: 'ids harus berupa array bilangan bulat' })
+  }
   await pool.query(
     `UPDATE lessons SET position = v.pos FROM unnest($1::int[]) WITH ORDINALITY AS v(id, pos)
      WHERE lessons.id = v.id AND lessons.course_id = $2`,
@@ -99,7 +95,15 @@ export async function setStudentActive(req, res) {
   res.json(toCamel(rows[0]))
 }
 
+const DATE = /^\d{4}-\d{2}-\d{2}$/
+
 export async function getReports(req, res) {
+  const { from = null, to = null } = req.query
+  if ([from, to].some((d) => d !== null && !DATE.test(d)) || (from && to && from > to)) {
+    return res.status(400).json({ message: 'Rentang tanggal tidak valid (format YYYY-MM-DD, dari <= sampai)' })
+  }
+  const range = (col) => `($1::date IS NULL OR ${col} >= $1::date) AND ($2::date IS NULL OR ${col} < $2::date + 1)`
+  const count = async (sql) => (await pool.query(sql, [from, to])).rows[0].n
   const progressByCourse = await one(`
     SELECT c.id, c.title, COALESCE(ROUND(AVG(e.progress_percent)), 0)::int AS average_progress,
       COUNT(e.user_id)::int AS enrolled_count
@@ -112,10 +116,16 @@ export async function getReports(req, res) {
     SELECT COUNT(*)::int AS total_messages,
       COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS this_week
     FROM chat_messages`)
+  const period = {
+    chatMessages: await count(`SELECT COUNT(*)::int AS n FROM chat_messages WHERE ${range('created_at')}`),
+    lessonsCompleted: await count(`SELECT COUNT(*)::int AS n FROM lesson_progress WHERE ${range('completed_at')}`),
+    newStudents: await count(`SELECT COUNT(*)::int AS n FROM users WHERE role = 'student' AND ${range('created_at')}`),
+  }
   res.json({
     progressByCourse: progressByCourse.map(toCamel),
     highestRated: rated[0] ?? null,
     lowestRated: rated.at(-1) ?? null,
     chatMessageStats: toCamel(chat),
+    period,
   })
 }

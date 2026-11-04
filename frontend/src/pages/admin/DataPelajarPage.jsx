@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api } from '@/lib/api'
 import { useAction, useFetch } from '@/lib/use-fetch'
 import { ActionError, PageState } from '@/components/admin/PageState'
+import { matchesQuery, useAdminNavigation } from '@/components/admin/AdminNavigation'
 
 function initials(name) {
   return name
@@ -24,7 +25,8 @@ function DataPelajarPage() {
   const { data: courses } = useFetch('/admin/courses')
   const [run, actionError] = useAction(reload)
   const [selected, setSelected] = useState(null)
-  const students = data ?? []
+  const { query } = useAdminNavigation()
+  const students = (data ?? []).filter((s) => matchesQuery(query, s.name, s.email))
 
   const courseTitle = (courseId) =>
     (courses ?? []).find((course) => course.id === courseId)?.title ?? 'Kelas tidak ditemukan'
