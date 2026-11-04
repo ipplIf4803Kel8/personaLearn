@@ -4,6 +4,7 @@ import { useDb } from '@/data/db'
 import { useRouter } from '@/lib/router'
 import { getHomePath } from '@/routes/getHomePath'
 import { useAuth } from '@/context/AuthContext'
+import { validateLoginForm } from '@/lib/formValidation'
 
 export const SERVER_MATI = 'Tidak dapat terhubung ke server' // pesan dari lib/api.js
 
@@ -14,15 +15,21 @@ export function MasukPage() {
   const { aksi } = useDb()
   const auth = useAuth()
   const [pesan, setPesan] = useState('')
+  const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   return (
     <div data-screen="UC1-L02">
       <LoginScreen
         message={pesan}
+        errors={errors}
         loading={loading}
         onSubmit={async ({ email, password }) => {
-          setLoading(true)
           setPesan('')
+          // Periksa isian dulu (email kosong/tidak valid, sandi kosong) sebelum dikirim ke server.
+          const salah = validateLoginForm({ email, password })
+          setErrors(salah)
+          if (Object.keys(salah).length) return
+          setLoading(true)
           try {
             const user = await auth.login({ email, password })
             if (user.role === 'admin') return navigate('/admin', { replace: true })

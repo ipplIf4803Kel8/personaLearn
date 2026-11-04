@@ -3,6 +3,7 @@ import { RegisterScreen } from '@/components/auth/auth-screen'
 import { useDb } from '@/data/db'
 import { useRouter } from '@/lib/router'
 import { useAuth } from '@/context/AuthContext'
+import { validateRegisterForm } from '@/lib/formValidation'
 import { SERVER_MATI } from '@/pages/pelajar/autentikasi/MasukPage'
 
 // UC1-L03 Buat Akun (kondisi A: data tidak valid). Akun dibuat di backend (POST /auth/register);
@@ -19,8 +20,11 @@ export function DaftarPage() {
         errors={errors}
         loading={loading}
         onSubmit={async ({ email, password, confirmPassword }) => {
+          // Periksa isian dulu (kosong, email tidak valid, sandi < 8 / tanpa angka, konfirmasi beda).
+          const salah = validateRegisterForm({ email, password, confirmPassword })
+          setErrors(salah)
+          if (Object.keys(salah).length) return
           setLoading(true)
-          setErrors({})
           try {
             // Form Figma tidak punya kolom nama, jadi nama awal diambil dari email (bisa diubah di Profil).
             await auth.register({ name: email.split('@')[0], email, password, confirmPassword })
