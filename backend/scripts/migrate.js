@@ -28,8 +28,20 @@ async function runMigrations() {
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
   const client = new pg.Client({ ...config, database: dbName })
   await client.connect()
-  for (const file of files) {
-    await client.query(fs.readFileSync(path.join(dir, file), 'utf8'))
+  await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMP NOT NULL DEFAULT NOW())')
+  const { rows } = await client.query('SELECT name FROM schema_migrations')
+  const done = new Set(rows.map((r) => r.name))
+  for (const file of files.filter((f) => !done.has(f))) {
+    // satu transaksi per file, jadi migrasi yang gagal tidak meninggalkan skema setengah jadi
+    await client.query('BEGIN')
+    try {
+      await client.query(fs.readFileSync(path.join(dir, file), 'utf8'))
+      await client.query('INSERT INTO schema_migrations (name) VALUES ($1)', [file])
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    }
     console.log(`Migrasi ${file} selesai`)
   }
   await client.end()

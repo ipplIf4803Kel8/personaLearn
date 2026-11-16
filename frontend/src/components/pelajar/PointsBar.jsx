@@ -1,6 +1,8 @@
 import { Avatar } from '@/components/pelajar/Avatar'
 import { HEADING_FONT } from '@/components/pelajar/theme'
-import { penggunaAktif, useDb } from '@/data/db'
+import { useAuth } from '@/context/AuthContext'
+import { muatStatistik } from '@/data/learningApi'
+import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
 
 export function PointsIcon({ className = 'size-6' }) {
@@ -23,16 +25,18 @@ export function StreakIcon({ className = 'size-6' }) {
 
 /** Baris poin & streak di atas Daftar Kelas Anda. */
 export function PointsBar() {
-  const { db } = useDb()
-  const u = penggunaAktif(db)
+  const { user } = useAuth()
+  const { data, memuat } = useAsync(muatStatistik, [])
+  const poin = data?.totalPoints
+  const streak = data?.currentStreak
   return (
     <div data-testid="bar-poin-streak" className="flex items-center justify-between py-2">
-      <Avatar u={u} className="size-9 text-xs" />
-      <span className={cn('inline-flex items-center gap-1.5 text-lg font-semibold text-[#2F80ED]', HEADING_FONT)}>
-        <PointsIcon /> {u?.poin}
+      <Avatar u={{ nama: user?.name }} className="size-9 text-xs" />
+      <span className={cn('inline-flex items-center gap-1.5 text-lg font-semibold text-info', HEADING_FONT)} aria-label={`Total poin ${poin ?? 0}`}>
+        <PointsIcon /> {memuat ? '-' : (poin ?? 0)}
       </span>
-      <span className={cn('inline-flex items-center gap-1 text-lg font-semibold text-[#F0384B]', HEADING_FONT)} aria-label={`Streak ${u?.streak} hari`}>
-        <StreakIcon /> {u?.streak}
+      <span className={cn('inline-flex items-center gap-1 text-lg font-semibold text-danger', HEADING_FONT)} aria-label={`Streak ${streak ?? 0} hari`}>
+        <StreakIcon /> {memuat ? '-' : (streak ?? 0)}
       </span>
     </div>
   )

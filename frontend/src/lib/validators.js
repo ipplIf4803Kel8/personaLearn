@@ -16,3 +16,12 @@ export function validateRegister({ name, email, password, confirmPassword }) {
   if (confirmPassword !== password) errors.confirmPassword = 'Konfirmasi kata sandi tidak cocok'
   return errors
 }
+
+// Hanya tautan http/https yang boleh dipakai sebagai sumber video
+export function isHttpUrl(value) {
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol)
+  } catch {
+    return false
+  }
+}

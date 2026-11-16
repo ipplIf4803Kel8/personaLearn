@@ -48,13 +48,13 @@ function MasukAdminPage() {
         </div>
         <FormError>{pesan}</FormError>
         <div className="space-y-1.5">
-          <label htmlFor="admin-email" className="text-sm font-medium">
+          <label htmlFor="admin-email" className="block text-sm font-medium">
             Email
           </label>
           <Input id="admin-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="admin-sandi" className="text-sm font-medium">
+          <label htmlFor="admin-sandi" className="block text-sm font-medium">
             Kata sandi
           </label>
           <div className="relative">

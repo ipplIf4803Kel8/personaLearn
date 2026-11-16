@@ -22,7 +22,7 @@ export function BottomSheet({ open, onClose, title, kanan, children, kode, cente
         data-screen={kode}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative w-full max-w-md bg-white text-[#24252C] shadow-2xl',
+          'relative w-full max-w-[430px] bg-white text-[#24252C] shadow-2xl',
           center ? 'rounded-3xl p-7' : 'max-h-[88vh] overflow-y-auto rounded-t-[2rem] px-6 pt-4 pb-8',
         )}
       >

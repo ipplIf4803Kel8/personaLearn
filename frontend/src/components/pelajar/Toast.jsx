@@ -22,7 +22,7 @@ export function ToastProvider({ children }) {
           <div
             role="status"
             className={cn(
-              'pointer-events-auto flex max-w-md items-center gap-2 rounded-xl px-4 py-3 text-xs font-medium shadow-lg',
+              'pointer-events-auto flex max-w-[430px] items-center gap-2 rounded-xl px-4 py-3 text-xs font-medium shadow-lg',
               toast.jenis === 'gagal' ? 'bg-[#FDECEE] text-[#C8303C]' : 'bg-[#E8F7EE] text-[#1E7A46]',
             )}
           >

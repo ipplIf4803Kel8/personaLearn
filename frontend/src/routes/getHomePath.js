@@ -1,5 +1,5 @@
-// Setelah login: Admin ke dashboard, Pelajar baru ke UC1-L12, selebihnya ke Beranda.
-export function getHomePath(u) {
-  if (u.peran === 'admin') return '/admin'
-  return u.onboardingSelesai ? '/beranda' : '/kenali-gaya-belajar'
+// Setelah login: admin ke dashboard, pelajar yang belum mengisi gaya belajar ke UC1-L12, selebihnya ke Beranda.
+export function getHomePath(user) {
+  if (user.role === 'admin') return '/admin'
+  return user.varkStyle ? '/beranda' : '/kenali-gaya-belajar'
 }

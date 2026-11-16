@@ -5,14 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
-import { useAction, useFetch } from '@/lib/use-fetch'
-import { ActionError, PageState } from '@/components/admin/PageState'
-import { TagPicker, personalityOptions, varkOptions } from '@/components/admin/TagPicker'
+import { useFetch } from '@/lib/use-fetch'
+import { useAdminAction } from '@/components/admin/useAdminAction'
+import { ActionError, PageState, STICKY_ACTION } from '@/components/admin/PageState'
+import { TagPicker, personalityGroups, varkOptions } from '@/components/admin/TagPicker'
 
-// UC10 Kelola Tag Jenis Konten — tag gaya belajar & kepribadian per kelas, disimpan ke backend.
+// UC10 Kelola Tag Jenis Konten: tag gaya belajar & kepribadian per kelas, disimpan ke backend.
 function TagKontenPage() {
   const { data, loading, error, reload } = useFetch('/admin/courses')
-  const [run, actionError] = useAction(reload)
+  const [run, actionError, clearError] = useAdminAction(reload)
   const [editing, setEditing] = useState(null)
 
   async function handleSubmit(event) {
@@ -30,7 +31,7 @@ function TagKontenPage() {
         <p className="text-sm text-muted-foreground">Tag dipakai untuk mencocokkan kelas dengan gaya belajar dan kepribadian pelajar.</p>
       </div>
 
-      <ActionError message={actionError} />
+      <ActionError message={editing ? null : actionError} />
 
       {data.length === 0 ? (
         <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed text-center">
@@ -43,23 +44,26 @@ function TagKontenPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Kelas</TableHead>
-                <TableHead>Gaya Belajar</TableHead>
+                <TableHead className="hidden md:table-cell">Gaya Belajar</TableHead>
                 <TableHead>Kepribadian</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead className={`text-right ${STICKY_ACTION}`}>Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((course) => (
                 <TableRow key={course.id}>
                   <TableCell className="font-medium">{course.title}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <TagList tags={course.varkTags} />
                   </TableCell>
                   <TableCell>
                     <TagList tags={course.personalityTags} />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="icon-sm" aria-label={`Ubah tag ${course.title}`} onClick={() => setEditing(course)}>
+                  <TableCell className={`text-right ${STICKY_ACTION}`}>
+                    <Button variant="outline" size="icon-sm" aria-label={`Ubah tag ${course.title}`} onClick={() => {
+                      clearError()
+                      setEditing(course)
+                    }}>
                       <Pencil className="size-4" />
                     </Button>
                   </TableCell>
@@ -87,11 +91,12 @@ function TagKontenPage() {
                 />
                 <TagPicker
                   label="Tag Kepribadian"
-                  options={personalityOptions}
+                  groups={personalityGroups}
                   value={editing.personalityTags}
                   onChange={(value) => setEditing((current) => ({ ...current, personalityTags: value }))}
                 />
               </div>
+              <ActionError message={actionError} className="px-4" />
               <SheetFooter>
                 <Button type="submit">Simpan</Button>
                 <SheetClose asChild>

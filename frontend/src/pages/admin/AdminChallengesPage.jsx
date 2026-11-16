@@ -13,8 +13,10 @@ import {
 } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
-import { useAction, useFetch } from '@/lib/use-fetch'
-import { ActionError, PageState } from '@/components/admin/PageState'
+import { validateChallenge } from '@/lib/adminValidation'
+import { useFetch } from '@/lib/use-fetch'
+import { useAdminAction } from '@/components/admin/useAdminAction'
+import { ActionError, FieldError, PageState, STICKY_ACTION } from '@/components/admin/PageState'
 import { matchesQuery, useAdminNavigation } from '@/components/admin/AdminNavigation'
 
 const NO_COURSE = 'none'
@@ -23,26 +25,31 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// Kelola Tantangan — data dari backend (kode dari teman, dipindah ke struktur baru)
+// Kelola Tantangan
 function AdminChallengesPage() {
   const { data, loading, error, reload } = useFetch('/admin/challenges')
   const { data: courses } = useFetch('/admin/courses')
-  const [run, actionError] = useAction(reload)
+  const [run, actionError, clearError] = useAdminAction(reload)
   const { query } = useAdminNavigation()
   const challenges = (data ?? []).filter((c) => matchesQuery(query, c.title, c.description))
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [errors, setErrors] = useState({})
 
   function courseTitle(courseId) {
     return (courses ?? []).find((course) => course.id === courseId)?.title ?? 'Semua Kelas'
   }
 
   function openCreate() {
+    setErrors({})
+    clearError()
     setEditing({ id: null, title: '', description: '', rewardPoints: 10, startsAt: '', endsAt: '', courseId: NO_COURSE })
     setSheetOpen(true)
   }
 
   function openEdit(challenge) {
+    setErrors({})
+    clearError()
     setEditing({ ...challenge, courseId: challenge.courseId ? String(challenge.courseId) : NO_COURSE })
     setSheetOpen(true)
   }
@@ -58,12 +65,15 @@ function AdminChallengesPage() {
     const payload = {
       title: formData.get('title').trim(),
       description: formData.get('description').trim(),
-      rewardPoints: Number(formData.get('rewardPoints')),
+      rewardPoints: formData.get('rewardPoints'),
       startsAt: formData.get('startsAt'),
       endsAt: formData.get('endsAt'),
       courseId: editing.courseId === NO_COURSE ? null : Number(editing.courseId),
     }
-    if (!payload.title) return
+    const found = validateChallenge(payload)
+    setErrors(found)
+    if (Object.keys(found).length) return
+    payload.rewardPoints = Number(payload.rewardPoints)
 
     const request = editing.id
       ? api(`/admin/challenges/${editing.id}`, { method: 'PATCH', body: payload })
@@ -83,7 +93,7 @@ function AdminChallengesPage() {
         </Button>
       </div>
 
-      <ActionError message={actionError} />
+      <ActionError message={sheetOpen ? null : actionError} />
 
       {challenges.length === 0 ? (
         <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed text-center">
@@ -98,14 +108,14 @@ function AdminChallengesPage() {
                 <TableHead>Tantangan</TableHead>
                 <TableHead>Periode</TableHead>
                 <TableHead>Poin</TableHead>
-                <TableHead>Kelas Terkait</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead className="hidden lg:table-cell">Kelas Terkait</TableHead>
+                <TableHead className={`text-right ${STICKY_ACTION}`}>Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {challenges.map((challenge) => (
                 <TableRow key={challenge.id}>
-                  <TableCell>
+                  <TableCell className="max-w-64 whitespace-normal">
                     <p className="font-medium">{challenge.title}</p>
                     <p className="text-sm text-muted-foreground">{challenge.description}</p>
                   </TableCell>
@@ -113,8 +123,8 @@ function AdminChallengesPage() {
                     {formatDate(challenge.startsAt)} &ndash; {formatDate(challenge.endsAt)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{challenge.rewardPoints}</TableCell>
-                  <TableCell className="text-muted-foreground">{courseTitle(challenge.courseId)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden text-muted-foreground lg:table-cell">{courseTitle(challenge.courseId)}</TableCell>
+                  <TableCell className={`text-right ${STICKY_ACTION}`}>
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="icon-sm" aria-label={`Ubah ${challenge.title}`} onClick={() => openEdit(challenge)}>
                         <Pencil className="size-4" />
@@ -139,19 +149,20 @@ function AdminChallengesPage() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="overflow-y-auto">
           {editing && (
-            <form onSubmit={handleSubmit} className="flex h-full flex-col">
+            <form onSubmit={handleSubmit} noValidate className="flex h-full flex-col">
               <SheetHeader>
                 <SheetTitle>{editing.id ? 'Ubah Tantangan' : 'Tambah Tantangan'}</SheetTitle>
               </SheetHeader>
               <div className="flex-1 space-y-4 px-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="challenge-title" className="text-sm font-medium">
+                  <label htmlFor="challenge-title" className="block text-sm font-medium">
                     Judul
                   </label>
-                  <Input id="challenge-title" name="title" defaultValue={editing.title} required />
+                  <Input id="challenge-title" name="title" defaultValue={editing.title} aria-invalid={!!errors.title} />
+                  <FieldError message={errors.title} />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="challenge-description" className="text-sm font-medium">
+                  <label htmlFor="challenge-description" className="block text-sm font-medium">
                     Deskripsi
                   </label>
                   <textarea
@@ -163,27 +174,29 @@ function AdminChallengesPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="challenge-points" className="text-sm font-medium">
+                  <label htmlFor="challenge-points" className="block text-sm font-medium">
                     Poin Hadiah
                   </label>
-                  <Input id="challenge-points" name="rewardPoints" type="number" min="0" defaultValue={editing.rewardPoints} />
+                  <Input id="challenge-points" name="rewardPoints" type="number" min="0" defaultValue={editing.rewardPoints} aria-invalid={!!errors.rewardPoints} />
+                  <FieldError message={errors.rewardPoints} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label htmlFor="challenge-start" className="text-sm font-medium">
+                    <label htmlFor="challenge-start" className="block text-sm font-medium">
                       Mulai
                     </label>
                     <Input id="challenge-start" name="startsAt" type="date" defaultValue={editing.startsAt} />
                   </div>
                   <div className="space-y-1.5">
-                    <label htmlFor="challenge-end" className="text-sm font-medium">
+                    <label htmlFor="challenge-end" className="block text-sm font-medium">
                       Berakhir
                     </label>
-                    <Input id="challenge-end" name="endsAt" type="date" defaultValue={editing.endsAt} />
+                    <Input id="challenge-end" name="endsAt" type="date" defaultValue={editing.endsAt} aria-invalid={!!errors.endsAt} />
+                    <FieldError message={errors.endsAt} />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Kelas Terkait</label>
+                  <label className="block text-sm font-medium">Kelas Terkait</label>
                   <Select
                     value={editing.courseId}
                     onValueChange={(value) => setEditing((current) => ({ ...current, courseId: value }))}
@@ -202,6 +215,7 @@ function AdminChallengesPage() {
                   </Select>
                 </div>
               </div>
+              <ActionError message={actionError} className="px-4" />
               <SheetFooter>
                 <Button type="submit">Simpan</Button>
                 <SheetClose asChild>

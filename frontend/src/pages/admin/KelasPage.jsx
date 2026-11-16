@@ -14,20 +14,22 @@ import {
 } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
-import { useAction, useFetch } from '@/lib/use-fetch'
-import { ActionError, PageState } from '@/components/admin/PageState'
+import { validateCourse } from '@/lib/adminValidation'
+import { useFetch } from '@/lib/use-fetch'
+import { useAdminAction } from '@/components/admin/useAdminAction'
+import { ActionError, FieldError, PageState, STICKY_ACTION } from '@/components/admin/PageState'
 
 import { useRouter } from '@/lib/router'
 import { matchesQuery, useAdminNavigation } from '@/components/admin/AdminNavigation'
-import { TagPicker, personalityOptions, varkOptions } from '@/components/admin/TagPicker'
+import { TagPicker, personalityGroups, varkOptions } from '@/components/admin/TagPicker'
 
 const levels = ['Beginner', 'Intermediate', 'Advanced']
 
-// UC8 Kelola Kelas — data dari backend (kode dari teman, dipindah ke struktur baru)
+// UC8 Kelola Kelas
 function KelasPage() {
   const { data, loading, error, reload } = useFetch('/admin/courses')
   const { data: categoryData } = useFetch('/admin/categories')
-  const [run, actionError] = useAction(reload)
+  const [run, actionError, clearError] = useAdminAction(reload)
   const courses = data ?? []
   const categories = categoryData ?? []
   const { navigate } = useRouter()
@@ -37,6 +39,7 @@ function KelasPage() {
   const [levelFilter, setLevelFilter] = useState('all')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [errors, setErrors] = useState({})
 
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => {
@@ -52,11 +55,14 @@ function KelasPage() {
   }
 
   function openCreate() {
+    setErrors({})
+    clearError()
     setEditing({
       id: null,
       categoryId: categories[0]?.id ?? null,
       title: '',
       description: '',
+      thumbnailUrl: '',
       level: 'Beginner',
       isPublished: false,
       varkTags: [],
@@ -66,6 +72,8 @@ function KelasPage() {
   }
 
   function openEdit(course) {
+    setErrors({})
+    clearError()
     setEditing(course)
     setSheetOpen(true)
   }
@@ -81,13 +89,17 @@ function KelasPage() {
     const payload = {
       title: formData.get('title').trim(),
       description: formData.get('description').trim(),
+      thumbnailUrl: formData.get('thumbnailUrl').trim() || null,
       categoryId: editing.categoryId,
       level: editing.level,
       isPublished: editing.isPublished,
       varkTags: editing.varkTags,
       personalityTags: editing.personalityTags,
     }
-    if (!payload.title) return
+    const { coverUrl, ...rest } = validateCourse({ ...payload, coverUrl: payload.thumbnailUrl })
+    const found = coverUrl ? { ...rest, thumbnailUrl: coverUrl } : rest
+    setErrors(found)
+    if (Object.keys(found).length) return
 
     const request = editing.id
       ? api(`/admin/courses/${editing.id}`, { method: 'PATCH', body: payload })
@@ -107,7 +119,7 @@ function KelasPage() {
         </Button>
       </div>
 
-      <ActionError message={actionError} />
+      <ActionError message={sheetOpen ? null : actionError} />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
@@ -159,9 +171,9 @@ function KelasPage() {
               <TableRow>
                 <TableHead>Kelas</TableHead>
                 <TableHead>Kategori / Level</TableHead>
-                <TableHead>Pelajar</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead className="hidden md:table-cell">Pelajar</TableHead>
+                <TableHead className="hidden md:table-cell">Rating</TableHead>
+                <TableHead className={`text-right ${STICKY_ACTION}`}>Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -184,12 +196,12 @@ function KelasPage() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="whitespace-normal text-muted-foreground">
                     {categoryName(course.categoryId)} &middot; {course.level}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{course.studentsCount}</TableCell>
-                  <TableCell className="text-muted-foreground">{course.rating ?? '-'}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="hidden text-muted-foreground md:table-cell">{course.studentsCount}</TableCell>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">{course.rating ?? '-'}</TableCell>
+                  <TableCell className={`text-right ${STICKY_ACTION}`}>
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => navigate(`/admin/kelas/${course.id}`)}>
                         Kelola Pelajaran
@@ -217,19 +229,20 @@ function KelasPage() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="overflow-y-auto">
           {editing && (
-            <form onSubmit={handleSubmit} className="flex h-full flex-col">
+            <form onSubmit={handleSubmit} noValidate className="flex h-full flex-col">
               <SheetHeader>
                 <SheetTitle>{editing.id ? 'Ubah Kelas' : 'Tambah Kelas'}</SheetTitle>
               </SheetHeader>
               <div className="flex-1 space-y-4 px-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="course-title" className="text-sm font-medium">
+                  <label htmlFor="course-title" className="block text-sm font-medium">
                     Judul
                   </label>
-                  <Input id="course-title" name="title" defaultValue={editing.title} required />
+                  <Input id="course-title" name="title" defaultValue={editing.title} aria-invalid={!!errors.title} />
+                  <FieldError message={errors.title} />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="course-description" className="text-sm font-medium">
+                  <label htmlFor="course-description" className="block text-sm font-medium">
                     Deskripsi
                   </label>
                   <textarea
@@ -240,15 +253,28 @@ function KelasPage() {
                     className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="course-thumbnail" className="block text-sm font-medium">
+                    URL Sampul
+                  </label>
+                  <Input
+                    id="course-thumbnail"
+                    name="thumbnailUrl"
+                    defaultValue={editing.thumbnailUrl ?? ''}
+                    placeholder="https://..."
+                    aria-invalid={!!errors.thumbnailUrl}
+                  />
+                  <FieldError message={errors.thumbnailUrl} />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Kategori</label>
+                    <label className="block text-sm font-medium">Kategori</label>
                     <Select
-                      value={String(editing.categoryId)}
+                      value={editing.categoryId ? String(editing.categoryId) : ''}
                       onValueChange={(value) => setEditing((current) => ({ ...current, categoryId: Number(value) }))}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue />
+                        <SelectValue placeholder="Pilih kategori" />
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((category) => (
@@ -258,9 +284,10 @@ function KelasPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FieldError message={errors.categoryId} />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Level</label>
+                    <label className="block text-sm font-medium">Level</label>
                     <Select
                       value={editing.level}
                       onValueChange={(value) => setEditing((current) => ({ ...current, level: value }))}
@@ -276,6 +303,7 @@ function KelasPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FieldError message={errors.level} />
                   </div>
                 </div>
                 <label className="flex items-center gap-2 text-sm font-medium">
@@ -294,11 +322,12 @@ function KelasPage() {
                 />
                 <TagPicker
                   label="Tag Kepribadian"
-                  options={personalityOptions}
+                  groups={personalityGroups}
                   value={editing.personalityTags}
                   onChange={(value) => setEditing((current) => ({ ...current, personalityTags: value }))}
                 />
               </div>
+              <ActionError message={actionError} className="px-4" />
               <SheetFooter>
                 <Button type="submit">Simpan</Button>
                 <SheetClose asChild>

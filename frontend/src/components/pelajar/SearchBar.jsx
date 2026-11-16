@@ -12,7 +12,7 @@ export function SearchBar({ value, onChange, onClick, onFilter, jumlahFilter = 0
           onChange={(e) => onChange?.(e.target.value)}
           placeholder="Cari sekarang ..."
           aria-label="Kata kunci"
-          className="w-full bg-transparent py-4 text-base text-[#24252C] outline-none placeholder:text-[#A9A9B2]"
+          className="w-full bg-transparent py-4 text-base text-[#24252C] outline-none placeholder:text-subtle"
         />
       </label>
       <button type="button" aria-label="Filter Kelas" onClick={onFilter} className="relative flex size-[60px] shrink-0 items-center justify-center rounded-2xl bg-[#5F33E1] text-white shadow-[0_10px_20px_rgba(95,51,225,0.25)]">

@@ -133,3 +133,15 @@ body:has(.demostack-dashboard)
   padding-left: 0.625rem;
   padding-right: 2rem;
 }
+
+/* Tombol ikon admin: area klik minimal 36px, 44px pada layar sentuh */
+body:has(.demostack-dashboard) [data-slot="button"][data-size^="icon"] {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+@media (pointer: coarse) {
+  body:has(.demostack-dashboard) [data-slot="button"][data-size^="icon"] {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}

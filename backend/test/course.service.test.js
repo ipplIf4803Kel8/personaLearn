@@ -1,9 +1,9 @@
 // Uji CourseService (DPPL #2 Eksplorasi Kelas + pengelolaan admin) terhadap DB uji.
 import assert from 'node:assert/strict'
-import { after, beforeEach, describe, it } from 'node:test'
+import { afterAll, beforeEach, describe, it } from 'vitest'
 import 'dotenv/config'
 import pool from '../src/config/db.js'
-import { courseService as svc } from '../src/services/course.service.js'
+import { courseService as svc } from '../src/services/CourseService.js'
 
 assert.match(process.env.DB_NAME, /_test$/, 'DB_NAME harus berakhiran _test')
 
@@ -26,6 +26,7 @@ beforeEach(async () => {
   draft = await svc.create({ categoryId: catA, title: 'Draft Rahasia', isPublished: false })
   await svc.addLesson(js.id, { title: 'L1', durationSeconds: 600 })
   await svc.addLesson(js.id, { title: 'L2', durationSeconds: 600 })
+  await svc.addLesson(ui.id, { title: 'U1', durationSeconds: 300 })
 })
 
 describe('search', () => {
@@ -57,7 +58,7 @@ describe('search', () => {
 
   it('filter rating minimum memakai rata-rata rating', async () => {
     await svc.enroll(u1, js.id)
-    await pool.query('UPDATE enrollments SET rating = 4 WHERE user_id = $1', [u1])
+    await pool.query('INSERT INTO course_ratings (user_id, course_id, rating) VALUES ($1, $2, 4)', [u1, js.id])
     assert.deepEqual((await svc.search(u1, { minRating: '4' })).map((c) => c.id), [js.id])
     assert.equal((await svc.search(u1, { minRating: '5' })).length, 0)
   })
@@ -132,4 +133,26 @@ describe('create dan addLesson', () => {
   })
 })
 
-after(() => pool.end())
+describe('tag kelas dan statistik', () => {
+  it('tag disimpan di course_tags dan bisa diganti lewat update', async () => {
+    const c = await svc.create({ categoryId: catA, title: 'Bertag', varkTags: ['visual'], personalityTags: ['INTP', 'structured'] })
+    assert.deepEqual(c.varkTags, ['visual'])
+    assert.deepEqual(c.personalityTags, ['INTP', 'structured'])
+    const u = await svc.update(c.id, { varkTags: ['auditory', 'reading'] })
+    assert.deepEqual(u.varkTags, ['auditory', 'reading'])
+    assert.deepEqual(u.personalityTags, ['INTP', 'structured'])
+    await rejects(svc.update(c.id, { varkTags: ['bukan-vark'] }), 400)
+    await rejects(svc.update(9999, { title: 'x' }), 404)
+  })
+
+  it('progres dihitung dari lesson_progress, jumlah peserta dari enrollments', async () => {
+    await svc.enroll(u1, js.id)
+    const { rows } = await pool.query('SELECT id FROM lessons WHERE course_id = $1 ORDER BY position', [js.id])
+    await pool.query('INSERT INTO lesson_progress (user_id, lesson_id, completed_at) VALUES ($1, $2, NOW())', [u1, rows[0].id])
+    const p = await pool.query('SELECT progress_percent FROM enrollment_progress WHERE user_id = $1', [u1])
+    assert.equal(p.rows[0].progress_percent, 50)
+    assert.equal((await svc.search(u1, { id: js.id }))[0].studentsCount, 1)
+  })
+})
+
+afterAll(() => pool.end())

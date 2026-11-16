@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,11 +26,14 @@ function downloadCsv(data, range) {
   URL.revokeObjectURL(a.href)
 }
 
-// Laporan — data dari backend (kode dari teman, dipindah ke struktur baru)
+// Laporan
 function AdminReportsPage() {
   const [range, setRange] = useState({ from: '', to: '' })
   const invalid = range.from && range.to && range.from > range.to
-  const params = new URLSearchParams(invalid ? {} : Object.fromEntries(Object.entries(range).filter(([, v]) => v)))
+  // Rentang terbalik tidak dikirim: request tetap memakai rentang valid terakhir
+  const lastValid = useRef(range)
+  if (!invalid) lastValid.current = range
+  const params = new URLSearchParams(Object.fromEntries(Object.entries(lastValid.current).filter(([, v]) => v)))
   const { data, loading, error } = useFetch(`/admin/reports?${params}`)
   if (!data) return <PageState loading={loading} error={error} />
   const { progressByCourse, highestRated: highest, lowestRated: lowest, chatMessageStats, period } = data
@@ -39,7 +42,7 @@ function AdminReportsPage() {
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-7 md:py-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-2xl font-semibold">Laporan</h2>
-        <Button variant="outline" className="gap-1" onClick={() => downloadCsv(data, invalid ? { from: '', to: '' } : range)}>
+        <Button variant="outline" className="gap-1" onClick={() => downloadCsv(data, lastValid.current)}>
           <Download className="size-4" />
           Ekspor CSV
         </Button>
@@ -55,16 +58,21 @@ function AdminReportsPage() {
             </label>
           ))}
         </div>
-        {invalid && <p className="text-sm text-destructive">Tanggal awal tidak boleh setelah tanggal akhir.</p>}
-        <p className="text-sm text-muted-foreground">
+        {invalid && (
+          <p role="alert" className="text-sm text-destructive">
+            Tanggal akhir tidak boleh sebelum tanggal awal
+          </p>
+        )}
+        <p className={`text-sm text-muted-foreground ${invalid ? 'hidden' : ''}`}>
           {period.newStudents} pelajar baru &middot; {period.lessonsCompleted} pelajaran selesai &middot;{' '}
           {period.chatMessages} pesan ke Sinau Bot
-          {!range.from && !range.to && ' (semua waktu)'}
+          {!lastValid.current.from && !lastValid.current.to && ' (semua waktu)'}
         </p>
       </section>
 
       <section className="space-y-3 rounded-2xl border p-5">
         <h3 className="font-semibold">Progres Rata-rata per Kelas</h3>
+        {progressByCourse.length === 0 && <p className="text-sm text-muted-foreground">Belum ada kelas atau pelajar terdaftar.</p>}
         <div className="space-y-3">
           {progressByCourse.map(({ id, title, averageProgress, enrolledCount }) => (
             <div key={id} className="space-y-1">
@@ -112,6 +120,7 @@ function AdminReportsPage() {
         <p className="text-sm text-muted-foreground">
           {chatMessageStats.totalMessages} pesan total &middot; {chatMessageStats.thisWeek} pesan minggu ini
         </p>
+        {chatMessageStats.totalMessages === 0 && <p className="text-sm text-muted-foreground">Belum ada pesan ke Sinau Bot.</p>}
       </section>
     </div>
   )

@@ -1,7 +1,8 @@
-import { MdCheckCircle, MdWifiOff } from 'react-icons/md'
+import { MdCheckCircle, MdSearchOff, MdWifiOff } from 'react-icons/md'
 import { Screen } from '@/components/pelajar/Screen'
 import { Spinner, Button } from '@/components/pelajar/Button'
 import { HEADING_FONT } from '@/components/pelajar/theme'
+import { useRouter } from '@/lib/router'
 import { cn } from '@/lib/utils'
 
 export function Loading({ label = 'Memuat...' }) {
@@ -39,6 +40,12 @@ export function ErrorState({ title = 'Gagal memuat data', desc = 'Koneksi sedang
       )}
     </div>
   )
+}
+
+/** Id tidak valid atau server membalas 404: bukan masalah koneksi, jadi tanpa tombol Coba lagi. */
+export function NotFoundState({ title = 'Kelas tidak ditemukan', desc = 'Kelas yang Anda cari tidak ada atau sudah dihapus.', to = '/cari', label = 'Kembali ke Cari Kelas' }) {
+  const { navigate } = useRouter()
+  return <EmptyState icon={MdSearchOff} title={title} desc={desc} action={<Button className="py-3" onClick={() => navigate(to)}>{label}</Button>} />
 }
 
 /** Banner hijau di atas layar (UC4-L03, UC4-L05). */

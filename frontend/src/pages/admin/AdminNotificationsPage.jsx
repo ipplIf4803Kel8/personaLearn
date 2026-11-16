@@ -5,17 +5,19 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
+import { validateNotification } from '@/lib/adminValidation'
 import { useAction, useFetch } from '@/lib/use-fetch'
-import { ActionError, PageState } from '@/components/admin/PageState'
+import { ActionError, FieldError, PageState, STICKY_ACTION } from '@/components/admin/PageState'
 import { matchesQuery, useAdminNavigation } from '@/components/admin/AdminNavigation'
 
 const ALL_STUDENTS = 'all'
+const ONE_STUDENT = 'one'
 
 function formatDateTime(value) {
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-// Kirim Notifikasi — data dari backend (kode dari teman, dipindah ke struktur baru)
+// Kirim Notifikasi
 function AdminNotificationsPage() {
   const { data, loading, error, reload } = useFetch('/admin/notifications')
   const { data: studentList } = useFetch('/admin/students')
@@ -23,22 +25,36 @@ function AdminNotificationsPage() {
   const { query } = useAdminNavigation()
   const notifications = (data ?? []).filter((n) => matchesQuery(query, n.title, n.body, n.audience))
   const students = studentList ?? []
-  const [audience, setAudience] = useState(ALL_STUDENTS)
+  const [mode, setMode] = useState(ALL_STUDENTS)
+  const [studentId, setStudentId] = useState('')
+  const [studentSearch, setStudentSearch] = useState('')
+  const [errors, setErrors] = useState({})
+  const [sentTo, setSentTo] = useState(null)
+  const matchingStudents = students.filter((s) => matchesQuery(studentSearch, s.name, s.email))
 
   async function handleSubmit(event) {
     event.preventDefault()
     const form = event.currentTarget
-    const formData = new FormData(event.currentTarget)
+    const formData = new FormData(form)
     const title = formData.get('title').trim()
     const body = formData.get('body').trim()
-    if (!title || !body) return
+    const found = validateNotification({ title, body })
+    if (mode === ONE_STUDENT && !studentId) found.studentId = 'Pilih pelajar penerima'
+    setErrors(found)
+    setSentTo(null)
+    if (Object.keys(found).length) return
 
-    const audienceName =
-      audience === ALL_STUDENTS ? 'Semua Pelajar' : students.find((student) => String(student.id) === audience)?.name
-    const ok = await run(() => api('/admin/notifications', { method: 'POST', body: { title, body, audience: audienceName } }))
+    const payload = mode === ONE_STUDENT ? { title, body, userId: Number(studentId) } : { title, body }
+    let result
+    const ok = await run(async () => {
+      result = await api('/admin/notifications', { method: 'POST', body: payload })
+    })
     if (ok) {
       form.reset()
-      setAudience(ALL_STUDENTS)
+      setMode(ALL_STUDENTS)
+      setStudentId('')
+      setStudentSearch('')
+      setSentTo(result?.recipients ?? 0)
     }
   }
 
@@ -58,40 +74,73 @@ function AdminNotificationsPage() {
         <h3 className="font-semibold">Kirim Notifikasi</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="notification-title" className="text-sm font-medium">
+            <label htmlFor="notification-title" className="block text-sm font-medium">
               Judul
             </label>
-            <Input id="notification-title" name="title" required />
+            <Input id="notification-title" name="title" aria-invalid={!!errors.title} />
+            <FieldError message={errors.title} />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="notification-body" className="text-sm font-medium">
+            <label htmlFor="notification-body" className="block text-sm font-medium">
               Isi Pesan
             </label>
             <textarea
               id="notification-body"
               name="body"
               rows={3}
-              required
+              aria-invalid={!!errors.body}
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
+            <FieldError message={errors.body} />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Tujuan</label>
-            <Select value={audience} onValueChange={setAudience}>
+            <label className="block text-sm font-medium">Penerima</label>
+            <Select value={mode} onValueChange={setMode}>
               <SelectTrigger className="w-full sm:w-72">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL_STUDENTS}>Semua Pelajar</SelectItem>
-                {students.map((student) => (
-                  <SelectItem key={student.id} value={String(student.id)}>
-                    {student.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value={ALL_STUDENTS}>Semua pelajar</SelectItem>
+                <SelectItem value={ONE_STUDENT}>Pelajar tertentu</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {mode === ONE_STUDENT && (
+            <div className="space-y-1.5">
+              <label htmlFor="notification-student-search" className="mb-1 block text-sm font-medium">
+                Cari pelajar
+              </label>
+              <Input
+                id="notification-student-search"
+                value={studentSearch}
+                onChange={(event) => setStudentSearch(event.target.value)}
+                placeholder="Nama atau email"
+                className="sm:w-72"
+              />
+              <Select value={studentId} onValueChange={setStudentId}>
+                <SelectTrigger className="w-full sm:w-72" aria-invalid={!!errors.studentId}>
+                  <SelectValue placeholder="Pilih pelajar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {matchingStudents.length === 0 && (
+                    <p className="px-2 py-1.5 text-sm text-muted-foreground">Tidak ada pelajar yang cocok.</p>
+                  )}
+                  {matchingStudents.map((student) => (
+                    <SelectItem key={student.id} value={String(student.id)}>
+                      {student.name} ({student.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.studentId} />
+            </div>
+          )}
           <ActionError message={actionError} />
+          {sentTo !== null && !actionError && (
+            <p role="status" className="text-sm text-primary">
+              Terkirim ke {sentTo} pelajar
+            </p>
+          )}
           <Button type="submit" className="gap-1">
             <Send className="size-4" />
             Kirim
@@ -106,21 +155,30 @@ function AdminNotificationsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Notifikasi</TableHead>
-                <TableHead>Tujuan</TableHead>
-                <TableHead className="text-right">Waktu Kirim</TableHead>
-                <TableHead className="w-12" />
+                <TableHead className="hidden md:table-cell">Tujuan</TableHead>
+                <TableHead className="hidden text-right lg:table-cell">Waktu Kirim</TableHead>
+                <TableHead className={`w-12 ${STICKY_ACTION}`}>
+                  <span className="sr-only">Aksi</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
+              {notifications.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    Belum ada notifikasi terkirim.
+                  </TableCell>
+                </TableRow>
+              )}
               {notifications.map((notification) => (
                 <TableRow key={notification.id}>
-                  <TableCell>
+                  <TableCell className="max-w-72 whitespace-normal">
                     <p className="font-medium">{notification.title}</p>
                     <p className="text-sm text-muted-foreground">{notification.body}</p>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{notification.audience}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{formatDateTime(notification.sentAt)}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">{notification.audience}</TableCell>
+                  <TableCell className="hidden text-right text-muted-foreground lg:table-cell">{formatDateTime(notification.sentAt)}</TableCell>
+                  <TableCell className={STICKY_ACTION}>
                     <Button
                       variant="outline"
                       size="icon-sm"

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
-import { MdEmail, MdLock, MdVisibility, MdVisibilityOff } from 'react-icons/md'
 import { FaGoogle, FaFacebookF, FaApple } from 'react-icons/fa'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { PasswordInput } from '@/components/pelajar/FormField'
 
 const spring = { type: 'spring', stiffness: 300, damping: 30 }
 
@@ -39,24 +39,25 @@ export function AuthScreen({
   loading = false,
 }) {
   const isRegister = variant === 'register'
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit?.(isRegister ? { email, password, confirmPassword } : { email, password })
+    onSubmit?.(isRegister ? { name, email, password, confirmPassword } : { email, password })
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-white font-['DM_Sans',ui-sans-serif]">
+    <div className="min-h-screen w-full bg-slate-100 font-['DM_Sans',ui-sans-serif] md:py-6">
+    <div className="relative mx-auto min-h-screen w-full max-w-[430px] overflow-hidden bg-white md:min-h-[calc(100vh-3rem)] md:rounded-[2rem] md:shadow-xl">
       <div className="pointer-events-none absolute -top-10 -left-16 h-56 w-56 rounded-full bg-green-200/50 blur-3xl" />
       <div className="pointer-events-none absolute -top-16 -right-16 h-72 w-72 rounded-full bg-violet-200/60 blur-3xl" />
       <div className="pointer-events-none absolute bottom-40 -left-10 h-48 w-48 rounded-full bg-sky-200/50 blur-3xl" />
       <div className="pointer-events-none absolute right-0 bottom-0 h-56 w-56 rounded-full bg-amber-100/70 blur-3xl" />
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-sm flex-col px-6 py-10">
+      <div className="relative flex min-h-[inherit] w-full flex-col px-6 py-10">
         <div className="flex flex-1 flex-col justify-center">
           <motion.div {...fadeUp(0)} className="relative text-center">
             <h1 className="font-['Poppins'] text-[2rem] font-bold text-[#5F33E1]">{heading}</h1>
@@ -71,52 +72,64 @@ export function AuthScreen({
 
           <motion.form {...fadeUp(0.2)} onSubmit={handleSubmit} noValidate className="mt-10 space-y-4">
             {message && (
-              <p role="alert" className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600">
+              <p role="alert" className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
                 {message}
               </p>
             )}
+            {isRegister && (
+              <>
+                <Input
+                  type="text"
+                  aria-label="Nama"
+                  autoComplete="name"
+                  placeholder="Nama"
+                  value={name}
+                  maxLength={100}
+                  onChange={(e) => setName(e.target.value)}
+                  className={inputClass}
+                  aria-invalid={!!errors.name}
+                />
+                <FieldError text={errors.name} />
+              </>
+            )}
             <Input
               type="email"
+              inputMode="email"
+              autoComplete="email"
+              aria-label="Email"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
               aria-invalid={!!errors.email}
-              required
             />
             <FieldError text={errors.email} />
 
-            <div className="relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Kata Sandi"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`${inputClass} pr-12`}
-                aria-invalid={!!errors.password}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute top-1/2 right-4 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
-                aria-label="Toggle password visibility"
-              >
-                {showPassword ? <MdVisibilityOff className="h-5 w-5" /> : <MdVisibility className="h-5 w-5" />}
-              </button>
-            </div>
+            <PasswordInput
+              as={Input}
+              aria-label="Kata Sandi"
+              label="kata sandi"
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
+              placeholder="Kata Sandi"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputClass}
+              aria-invalid={!!errors.password}
+            />
             <FieldError text={errors.password} />
 
             {isRegister ? (
               <>
-                <Input
-                  type={showPassword ? 'text' : 'password'}
+                <PasswordInput
+                  as={Input}
+                  aria-label="Konfirmasi Kata Sandi"
+                  label="konfirmasi kata sandi"
+                  autoComplete="new-password"
                   placeholder="Konfirmasi Kata Sandi"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={inputClass}
                   aria-invalid={!!errors.confirmPassword}
-                  required
                 />
                 <FieldError text={errors.confirmPassword} />
               </>
@@ -125,7 +138,7 @@ export function AuthScreen({
                 <button
                   type="button"
                   onClick={onForgotPassword}
-                  className="font-['Poppins'] text-sm font-semibold text-[#5F33E1]"
+                  className="min-h-10 px-2 font-['Poppins'] text-sm font-semibold text-[#5F33E1]"
                 >
                   Lupa Kata Sandi?
                 </button>
@@ -142,7 +155,7 @@ export function AuthScreen({
           </motion.form>
 
           <motion.div {...fadeUp(0.3)} className="mt-6 text-center">
-            <button type="button" onClick={onSwitch} className="font-['Poppins'] text-sm font-semibold text-[#494949]">
+            <button type="button" onClick={onSwitch} className="min-h-10 px-3 font-['Poppins'] text-sm font-semibold text-[#494949]">
               {switchPromptText}{' '}
               {switchActionText && <span className="text-[#5F33E1]">{switchActionText}</span>}
             </button>
@@ -166,6 +179,7 @@ export function AuthScreen({
           </motion.div>
         </div>
       </div>
+    </div>
     </div>
   )
 }

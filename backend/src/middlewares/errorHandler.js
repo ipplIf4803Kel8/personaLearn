@@ -7,6 +7,7 @@ const pgErrors = {
   23503: [409, 'Data masih terhubung dengan data lain atau referensi tidak ditemukan'],
   23514: [400, 'Data tidak memenuhi aturan (mis. tanggal berakhir sebelum tanggal mulai)'],
   '22P02': [400, 'Format data tidak valid'],
+  22021: [422, 'Teks mengandung karakter tidak valid'],
   22001: [400, 'Teks terlalu panjang'],
   22003: [400, 'Angka di luar batas'],
   '22007': [400, 'Format tanggal tidak valid'],

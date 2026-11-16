@@ -33,7 +33,7 @@ export function Spinner({ className }) {
 
 export function TextLink({ children, ...props }) {
   return (
-    <button type="button" className="text-sm font-medium text-[#5F33E1]" {...props}>
+    <button type="button" className="inline-flex min-h-10 items-center px-2 text-sm font-medium text-[#5F33E1]" {...props}>
       {children}
     </button>
   )

@@ -6,16 +6,18 @@ import { Input } from '@/components/ui/input'
 import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
-import { useAction, useFetch } from '@/lib/use-fetch'
+import { validateLesson } from '@/lib/adminValidation'
+import { useFetch } from '@/lib/use-fetch'
+import { useAdminAction } from '@/components/admin/useAdminAction'
 import { useRouter } from '@/lib/router'
-import { ActionError, PageState } from '@/components/admin/PageState'
+import { ActionError, FieldError, PageState, STICKY_ACTION } from '@/components/admin/PageState'
 
 function formatDuration(seconds) {
   const minutes = Math.round(seconds / 60)
   return `${minutes} menit`
 }
 
-// UC9 Kelola Pelajaran dalam Kelas — data dari backend (kode dari teman, dipindah ke struktur baru)
+// UC9 Kelola Pelajaran dalam Kelas
 function DetailKelasPage() {
   const { id } = useParams()
   const { navigate } = useRouter()
@@ -24,17 +26,22 @@ function DetailKelasPage() {
   const onBack = () => navigate('/admin/kelas')
   const lessonsPath = `/admin/courses/${id}/lessons`
   const { data, loading, error, reload } = useFetch(lessonsPath)
-  const [run, actionError] = useAction(reload)
+  const [run, actionError, clearError] = useAdminAction(reload)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [errors, setErrors] = useState({})
   const sortedLessons = data ?? []
 
   function openCreate() {
+    setErrors({})
+    clearError()
     setEditing({ id: null, title: '', videoUrl: '', durationMinutes: '', description: '' })
     setSheetOpen(true)
   }
 
   function openEdit(lesson) {
+    setErrors({})
+    clearError()
     setEditing({ ...lesson, durationMinutes: Math.round(lesson.durationSeconds / 60) })
     setSheetOpen(true)
   }
@@ -58,9 +65,12 @@ function DetailKelasPage() {
     const formData = new FormData(event.currentTarget)
     const title = formData.get('title').trim()
     const videoUrl = formData.get('videoUrl').trim()
-    const durationSeconds = Math.max(0, Number(formData.get('durationMinutes')) * 60)
+    const durationMinutes = formData.get('durationMinutes')
+    const durationSeconds = Math.round(Math.max(0, Number(durationMinutes)) * 60)
     const description = formData.get('description').trim()
-    if (!title) return
+    const found = validateLesson({ title, videoUrl, durationMinutes })
+    setErrors(found)
+    if (Object.keys(found).length) return
 
     const body = { title, videoUrl, durationSeconds, description }
     const request = editing.id
@@ -87,7 +97,7 @@ function DetailKelasPage() {
         </Button>
       </div>
 
-      <ActionError message={actionError} />
+      <ActionError message={sheetOpen ? null : actionError} />
 
       {!data ? (
         <PageState loading={loading} error={error} />
@@ -104,7 +114,7 @@ function DetailKelasPage() {
                 <TableHead className="w-12">#</TableHead>
                 <TableHead>Judul</TableHead>
                 <TableHead>Durasi</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead className={`text-right ${STICKY_ACTION}`}>Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -113,7 +123,7 @@ function DetailKelasPage() {
                   <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                   <TableCell className="font-medium">{lesson.title}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDuration(lesson.durationSeconds)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className={`text-right ${STICKY_ACTION}`}>
                     <div className="flex justify-end gap-1">
                       <Button variant="outline" size="icon-sm" aria-label="Naikkan urutan" onClick={() => move(lesson.id, -1)}>
                         <ArrowUp className="size-4" />
@@ -144,31 +154,34 @@ function DetailKelasPage() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent>
           {editing && (
-            <form onSubmit={handleSubmit} className="flex h-full flex-col">
+            <form onSubmit={handleSubmit} noValidate className="flex h-full flex-col">
               <SheetHeader>
                 <SheetTitle>{editing.id ? 'Ubah Pelajaran' : 'Tambah Pelajaran'}</SheetTitle>
               </SheetHeader>
               <div className="flex-1 space-y-4 px-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="lesson-title" className="text-sm font-medium">
+                  <label htmlFor="lesson-title" className="block text-sm font-medium">
                     Judul
                   </label>
-                  <Input id="lesson-title" name="title" defaultValue={editing.title} required />
+                  <Input id="lesson-title" name="title" defaultValue={editing.title} aria-invalid={!!errors.title} />
+                  <FieldError message={errors.title} />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="lesson-video" className="text-sm font-medium">
+                  <label htmlFor="lesson-video" className="block text-sm font-medium">
                     URL Video
                   </label>
-                  <Input id="lesson-video" name="videoUrl" defaultValue={editing.videoUrl} placeholder="https://..." />
+                  <Input id="lesson-video" name="videoUrl" defaultValue={editing.videoUrl} placeholder="https://..." aria-invalid={!!errors.videoUrl} />
+                  <FieldError message={errors.videoUrl} />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="lesson-duration" className="text-sm font-medium">
+                  <label htmlFor="lesson-duration" className="block text-sm font-medium">
                     Durasi (menit)
                   </label>
-                  <Input id="lesson-duration" name="durationMinutes" type="number" min="0" defaultValue={editing.durationMinutes} />
+                  <Input id="lesson-duration" name="durationMinutes" type="number" min="0" defaultValue={editing.durationMinutes} aria-invalid={!!errors.durationMinutes} />
+                  <FieldError message={errors.durationMinutes} />
                 </div>
                 <div className="space-y-1.5">
-                  <label htmlFor="lesson-description" className="text-sm font-medium">
+                  <label htmlFor="lesson-description" className="block text-sm font-medium">
                     Deskripsi / Ringkasan Materi
                   </label>
                   <textarea
@@ -180,6 +193,7 @@ function DetailKelasPage() {
                   />
                 </div>
               </div>
+              <ActionError message={actionError} className="px-4" />
               <SheetFooter>
                 <Button type="submit">Simpan</Button>
                 <SheetClose asChild>

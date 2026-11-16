@@ -34,7 +34,7 @@ export function Screen({ kode, title, back, actions, bell, nav, children, classN
     <div className={cn('min-h-screen w-full bg-slate-100 text-[#24252C] md:py-6', BODY_FONT)}>
       <div
         data-screen={kode}
-        className={cn('relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden md:min-h-[calc(100vh-3rem)] md:rounded-[2rem] md:shadow-xl', latar)}
+        className={cn('relative mx-auto flex min-h-screen w-full max-w-[430px] flex-col overflow-hidden md:min-h-[calc(100vh-3rem)] md:rounded-[2rem] md:shadow-xl', latar)}
       >
         {blobs && <DecorativeBackground />}
         {header && (title || back || actions || bell) && (
@@ -67,15 +67,15 @@ export function Screen({ kode, title, back, actions, bell, nav, children, classN
 
 export const BOTTOM_NAV_ITEMS = [
   { to: '/beranda', label: 'Beranda', icon: HiHome, match: ['/beranda', '/rekomendasi'] },
-  { to: '/cari', label: 'Cari Kelas', icon: HiAcademicCap, match: ['/cari', '/populer', '/favorit', '/kelas/'] },
-  { to: '/kelas-anda', label: 'Kelas Anda', icon: HiDocumentText, match: ['/kelas-anda', '/belajar', '/statistik', '/tantangan'] },
+  { to: '/cari', label: 'Jelajah Kelas', icon: HiAcademicCap, match: ['/cari', '/populer', '/favorit', '/kelas/'] },
+  { to: '/kelas-anda', label: 'Kelas Saya', icon: HiDocumentText, match: ['/kelas-anda', '/belajar', '/statistik', '/tantangan'] },
   { to: '/profil', label: 'Profil', icon: HiUser, match: ['/profil'] },
 ]
 
 export function BottomNav() {
   const { path, navigate } = useRouter()
   return (
-    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 rounded-t-3xl bg-white px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-6px_24px_rgba(36,37,44,0.06)] md:bottom-6 md:rounded-b-[2rem]">
+    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2 rounded-t-3xl bg-white px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-6px_24px_rgba(36,37,44,0.06)] md:bottom-6 md:rounded-b-[2rem]">
       <ul className="grid grid-cols-4">
         {BOTTOM_NAV_ITEMS.map(({ to, label, icon: Icon, match }) => {
           const aktif = match.some((m) => path === m || path.startsWith(m))
@@ -86,7 +86,7 @@ export function BottomNav() {
                 aria-label={label}
                 aria-current={aktif ? 'page' : undefined}
                 onClick={() => navigate(to)}
-                className={cn('flex size-11 items-center justify-center rounded-xl transition', aktif ? 'text-[#5F33E1]' : 'text-[#C9CBD3] hover:text-slate-400')}
+                className={cn('flex size-11 items-center justify-center rounded-xl transition', aktif ? 'text-[#5F33E1]' : 'text-subtle hover:text-[#6B6B76]')}
               >
                 <Icon className="size-8" />
               </button>

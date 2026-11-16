@@ -1,10 +1,16 @@
 import { api } from '@/lib/api'
+import { jikaAda } from '@/lib/learning'
 
-// Sambungan halaman pelajar ke API kelas di backend (backend/src/services/course.service.js):
-//   GET  /courses               cari kelas (q, categoryId, level, minRating, maxDurationMinutes, favoritesOnly, sort)
-//   GET  /courses/:id           detail kelas + daftar pelajaran + isEnrolled
-//   POST /courses/:id/enroll    ambil kelas
-//   POST /courses/:id/favorite  simpan / hapus favorit
+// Sambungan halaman pelajar ke API katalog di backend (backend/src/routes/course.routes.js).
+// Semua response berbentuk { data, message } (daftar juga membawa meta).
+//   GET    /categories              daftar kategori
+//   GET    /courses                 search, category, level, minRating, maxDurationMinutes, favoritesOnly, sort, page, limit
+//   GET    /courses/popular         kelas terpopuler
+//   GET    /courses/recommended     hasil engine rekomendasi
+//   GET    /courses/:id             detail kelas + pelajaran + isEnrolled, isFavorite, myRating
+//   POST   /courses/:id/enroll      ambil kelas
+//   POST   /courses/:id/rating      rating 1-5 (hanya jika sudah ambil kelas)
+//   POST   /courses/:id/favorite    tambah favorit; DELETE untuk menghapus
 // Data dari server diubah ke bentuk yang sudah dipakai komponen pelajar (nama, tingkat, durasi, ...).
 
 const TINGKAT = { Beginner: 'Pemula', Intermediate: 'Menengah', Advanced: 'Lanjut' }
@@ -20,9 +26,13 @@ export function kelasDariServer(c) {
     tingkat: TINGKAT[c.level] ?? c.level,
     gambar: c.thumbnailUrl || null,
     rating: c.rating ?? 0,
+    jumlahRating: c.ratingsCount ?? 0,
+    ratingSaya: c.myRating ?? null,
+    skor: c.score,
     jumlahPelajar: c.studentsCount ?? 0,
     jumlahPelajaran: c.lessonsCount ?? c.lessons?.length ?? 0,
     durasi: Math.round((c.totalDurationSeconds ?? 0) / 60),
+    detik: c.totalDurationSeconds ?? 0,
     favorit: Boolean(c.isFavorite),
     sudahIkut: Boolean(c.isEnrolled),
     pelajaran: (c.lessons ?? []).map((p) => ({
@@ -30,40 +40,62 @@ export function kelasDariServer(c) {
       judul: p.title,
       deskripsi: p.description,
       urlVideo: p.videoUrl || null,
-      durasi: Math.round((p.durationSeconds ?? 0) / 60),
+      detik: p.durationSeconds ?? 0,
     })),
-    dariServer: true,
   }
 }
 
+// ponytail: halaman daftar belum memakai paginasi; ambil sampai 100 kelas sekaligus.
+const BATAS = 100
+
 /** Cari kelas. Filter yang tidak didukung server (beberapa tingkat sekaligus, durasi minimum) disaring di sini. */
 export async function cariKelas({ q = '', idKategori = null, tingkat = [], ratingMin = 0, durasi = null, favoritSaja = false, urut } = {}) {
-  const params = new URLSearchParams()
-  if (q.trim()) params.set('q', q.trim())
-  if (idKategori) params.set('categoryId', idKategori)
+  const params = new URLSearchParams({ limit: BATAS })
+  if (q.trim()) params.set('search', q.trim())
+  if (idKategori) params.set('category', idKategori)
   if (tingkat.length === 1) params.set('level', LEVEL[tingkat[0]])
   if (ratingMin) params.set('minRating', ratingMin)
   if (durasi === 'pendek') params.set('maxDurationMinutes', 30)
   if (durasi === 'sedang') params.set('maxDurationMinutes', 60)
   if (favoritSaja) params.set('favoritesOnly', 'true')
   if (urut) params.set('sort', urut)
-  const data = await api(`/courses?${params}`)
+  const { data } = await api(`/courses?${params}`)
   return data
     .map(kelasDariServer)
     .filter((k) => !tingkat.length || tingkat.includes(k.tingkat))
-    .filter((k) => (durasi === 'sedang' ? k.durasi > 30 : durasi === 'panjang' ? k.durasi > 60 : true))
+    .filter((k) => (durasi === 'sedang' ? k.detik > 1800 : durasi === 'panjang' ? k.detik > 3600 : true))
 }
 
-export const kelasPopuler = () => cariKelas({ urut: 'popular' })
-
-export async function detailKelas(id) {
-  return kelasDariServer(await api(`/courses/${id}`))
+export async function daftarKategori() {
+  const { data } = await api('/categories')
+  return data.map((k) => ({ id: k.id, nama: k.name, slug: k.slug }))
 }
 
-export const ambilKelas = (id) => api(`/courses/${id}/enroll`, { method: 'POST' })
+export async function kelasPopuler(batas = 10) {
+  const { data } = await api(`/courses/popular?limit=${batas}`)
+  return data.map(kelasDariServer)
+}
 
-/** Mengembalikan true kalau sekarang jadi favorit. */
-export async function ubahFavorit(id) {
-  const r = await api(`/courses/${id}/favorite`, { method: 'POST' })
-  return r.isFavorite
+export async function kelasRekomendasi(batas = 10) {
+  const { data } = await api(`/courses/recommended?limit=${batas}`)
+  return data.map(kelasDariServer)
+}
+
+/** Detail kelas; null bila id tidak valid atau kelas tidak ada (404). Galat jaringan/server dilempar. */
+export const detailKelas = (id) => jikaAda(id, async () => kelasDariServer((await api(`/courses/${id}`)).data))
+
+export async function ambilKelas(id) {
+  const { data } = await api(`/courses/${id}/enroll`, { method: 'POST' })
+  return data
+}
+
+export async function beriRating(id, rating) {
+  const { data } = await api(`/courses/${id}/rating`, { method: 'POST', body: { rating } })
+  return data
+}
+
+/** Menambah atau menghapus favorit. Mengembalikan true kalau sekarang jadi favorit. */
+export async function ubahFavorit(id, jadiFavorit) {
+  const { data } = await api(`/courses/${id}/favorite`, { method: jadiFavorit ? 'POST' : 'DELETE' })
+  return data.isFavorite
 }

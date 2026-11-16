@@ -76,15 +76,15 @@ function AdminTopbar() {
     type="button"
     variant="outline"
     size="icon-lg"
-    className="size-8.5 shrink-0 rounded-full"
-    aria-label="Close search"
+    className="size-9 shrink-0 rounded-full pointer-coarse:size-11"
+    aria-label="Tutup pencarian"
     onClick={closeMobileSearch}
   >
             <X aria-hidden="true" className="size-4.5" />
           </Button>
         </div> : <>
-          <div className="flex items-center md:gap-4.5">
-            <SidebarTrigger className="size-8.5 shrink-0 md:hidden [&_svg]:size-5!" />
+          <div className="flex min-w-0 flex-1 items-center md:mr-3 md:gap-4.5">
+            <SidebarTrigger className="size-9 shrink-0 pointer-coarse:size-11 md:hidden [&_svg]:size-5!" />
 
             <div className="hidden shrink-0 items-center gap-1.5 md:flex">
               <TitleIcon aria-hidden="true" className="size-4" />
@@ -94,7 +94,7 @@ function AdminTopbar() {
               </h1>
             </div>
 
-            <InputGroup className="hidden h-8.5 border-none bg-secondary p-1 pl-2.5 md:flex md:w-75">
+            <InputGroup className="hidden h-8.5 border-none bg-secondary p-1 pl-2.5 md:flex md:w-75 md:max-w-full md:min-w-0 md:shrink">
               <InputGroupAddon className="pl-0">
                 <span aria-hidden="true" className="flex items-center">
                   <NavSearchIcon className="size-3.5 text-input-addon-foreground" />
@@ -128,8 +128,8 @@ function AdminTopbar() {
     type="button"
     variant="outline"
     size="icon-lg"
-    className="size-8.5 rounded-full md:hidden"
-    aria-label="Open search"
+    className="size-9 rounded-full pointer-coarse:size-11 md:hidden"
+    aria-label="Buka pencarian"
     onClick={openMobileSearch}
   >
               <Search aria-hidden="true" className="size-4.5" />
@@ -141,7 +141,7 @@ function AdminTopbar() {
     className={buttonVariants({
       variant: "outline",
       size: "icon-lg",
-      className: "size-8.5 rounded-full"
+      className: "size-9 rounded-full pointer-coarse:size-11"
     })}
     aria-label="Notifikasi"
   >
