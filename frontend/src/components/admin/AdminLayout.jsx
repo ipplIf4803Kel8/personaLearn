@@ -5,6 +5,7 @@ import { AdminSidebar } from '@/components/admin/Sidebar'
 import { AdminTopbar } from '@/components/admin/Topbar'
 import { ThemeProvider } from '@/components/admin/ThemeProvider'
 import { AdminSearchProvider } from '@/components/admin/AdminNavigation'
+import { prefetch } from '@/lib/use-fetch'
 import '@/components/admin/admin.css'
 
 const COLLAPSE_BELOW = 1100
@@ -24,7 +25,13 @@ function AutoCollapse() {
 }
 
 // Kerangka semua halaman admin: sidebar kiri, topbar, lalu isi halaman (<Outlet />) sesuai alamat.
+// Halaman utama admin dimuat di belakang layar begitu admin masuk, jadi pindah menu langsung tampil
+const PREFETCH = ['/admin/stats', '/admin/courses', '/admin/categories', '/admin/students', '/admin/challenges', '/admin/notifications']
+
 export function AdminLayout() {
+  useEffect(() => {
+    PREFETCH.forEach(prefetch)
+  }, [])
   return (
     <ThemeProvider>
       <AdminSearchProvider>

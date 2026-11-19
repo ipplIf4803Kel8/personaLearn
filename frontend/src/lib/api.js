@@ -1,8 +1,16 @@
+import { clearAsyncCache } from '@/hooks/useAsync'
+
 const TOKEN_KEY = 'token'
 
+export const fetchCache = new Map()
+
 export const getToken = () => localStorage.getItem(TOKEN_KEY)
-export const setToken = (token) =>
-  token ? localStorage.setItem(TOKEN_KEY, token) : localStorage.removeItem(TOKEN_KEY)
+export const setToken = (token) => {
+  fetchCache.clear()
+  clearAsyncCache()
+  if (token) localStorage.setItem(TOKEN_KEY, token)
+  else localStorage.removeItem(TOKEN_KEY)
+}
 
 let onUnauthorized = () => {}
 export const setUnauthorizedHandler = (fn) => (onUnauthorized = fn)
