@@ -11,6 +11,9 @@ const config = {
   password: process.env.DB_PASSWORD,
 }
 const dbName = process.env.DB_NAME
+// Supabase (prod): pakai koneksi langsung (non-pooling) karena migrasi memakai transaksi; database sudah ada
+const url = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL
+const connect = () => new pg.Client(url ? { connectionString: url, ssl: { rejectUnauthorized: false } } : { ...config, database: dbName })
 
 async function createDatabase() {
   const client = new pg.Client({ ...config, database: 'postgres' })
@@ -26,7 +29,7 @@ async function createDatabase() {
 async function runMigrations() {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../db/migrations')
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
-  const client = new pg.Client({ ...config, database: dbName })
+  const client = connect()
   await client.connect()
   await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMP NOT NULL DEFAULT NOW())')
   const { rows } = await client.query('SELECT name FROM schema_migrations')
@@ -48,7 +51,7 @@ async function runMigrations() {
 }
 
 try {
-  await createDatabase()
+  if (!url) await createDatabase()
   await runMigrations()
 } catch (err) {
   console.error('Migrasi gagal:', err.message)
