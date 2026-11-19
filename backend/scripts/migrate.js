@@ -11,9 +11,9 @@ const config = {
   password: process.env.DB_PASSWORD,
 }
 const dbName = process.env.DB_NAME
-// Supabase (prod): pakai koneksi langsung (non-pooling) karena migrasi memakai transaksi; database sudah ada
 const url = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL
-const connect = () => new pg.Client(url ? { connectionString: url, ssl: { rejectUnauthorized: false } } : { ...config, database: dbName })
+const noSslMode = (u) => { const x = new URL(u); x.searchParams.delete('sslmode'); return x.toString() }
+const connect = () => new pg.Client(url ? { connectionString: noSslMode(url), ssl: { rejectUnauthorized: false } } : { ...config, database: dbName })
 
 async function createDatabase() {
   const client = new pg.Client({ ...config, database: 'postgres' })

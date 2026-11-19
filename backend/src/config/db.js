@@ -4,11 +4,11 @@ import 'dotenv/config'
 // DATE dikembalikan sebagai string 'YYYY-MM-DD' agar tidak bergeser oleh zona waktu
 pg.types.setTypeParser(1082, (v) => v)
 
-// Di Vercel (integrasi Supabase) pakai POSTGRES_URL; lokal tetap lewat DB_* di .env
 const url = process.env.POSTGRES_URL
+const noSslMode = (u) => { const x = new URL(u); x.searchParams.delete('sslmode'); return x.toString() }
 const pool = new pg.Pool(
   url
-    ? { connectionString: url, ssl: { rejectUnauthorized: false } }
+    ? { connectionString: noSslMode(url), ssl: { rejectUnauthorized: false } }
     : {
         host: process.env.DB_HOST,
         port: Number(process.env.DB_PORT) || 5432,
